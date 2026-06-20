@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { ResultsVariant, STYLING_TIPS } from "@/lib/types";
 import { MiniTab } from "@/components/ui/TabBar";
 import { ScoreCircle } from "@/components/ui/ScoreCircle";
+import { tryonSession } from "@/lib/tryonSession";
 
 const SCORE = 87;
 
 export function ResultsScreen() {
   const router = useRouter();
   const [variant, setVariant] = useState<ResultsVariant>("a");
+  const resultUrl = tryonSession.getResult();
 
   return (
     <section className="min-h-full flex flex-col animate-fade">
@@ -22,10 +24,22 @@ export function ResultsScreen() {
 
       {/* Try-on preview */}
       <div className="px-[20px] pt-[10px]">
-        <div className="relative h-[380px] rounded-[20px] overflow-hidden hatch border border-[rgba(20,16,22,0.08)]">
-          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] text-[#8C7F92] text-center">
-            [ AI-GENERATED TRY-ON ]<br />your full look, styled
-          </span>
+        <div className="relative h-[380px] rounded-[20px] overflow-hidden border border-[rgba(20,16,22,0.08)] bg-white">
+          {resultUrl ? (
+            <img
+              src={resultUrl}
+              alt="AI-generated try-on result"
+              className="absolute inset-0 w-full h-full object-contain object-center"
+              style={{ background: "#fff" }}
+            />
+          ) : (
+            <>
+              <div className="hatch absolute inset-0" />
+              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] text-[#8C7F92] text-center">
+                [ AI-GENERATED TRY-ON ]<br />your full look, styled
+              </span>
+            </>
+          )}
           <span className="absolute top-[14px] left-[14px] font-[family-name:var(--font-mono)] text-[9px] tracking-[0.16em] uppercase text-white bg-[rgba(20,16,22,0.7)] px-[9px] py-[5px] rounded-full">
             ✦ AI Preview
           </span>

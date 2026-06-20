@@ -1,18 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PrivacyModal } from "@/components/layout/PrivacyModal";
+import { tryonSession } from "@/lib/tryonSession";
 
 export function TryOnUploadScreen() {
   const router = useRouter();
-  const [agreed, setAgreed] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [agreed,      setAgreed]      = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [previewUrl,  setPreviewUrl]  = useState(tryonSession.getUserPhotoPreviewUrl());
 
-  const ink = "#141016";
-  const lav = "var(--lav)";
+  const ink  = "#141016";
+  const lav  = "var(--lav)";
   const lime = "var(--lime)";
   const line = "rgba(20,16,22,0.12)";
+
+  function handleFile(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    tryonSession.setUserPhoto(file);
+    setPreviewUrl(tryonSession.getUserPhotoPreviewUrl());
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    handleFile(e.target.files?.[0] ?? null);
+    e.target.value = "";
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    handleFile(e.dataTransfer.files?.[0] ?? null);
+  }
+
+  function handleContinue() {
+    if (!agreed) return;
+    if (!previewUrl) {
+      fileRef.current?.click();
+      return;
+    }
+    router.push("/tryon/outfit");
+  }
+
+  const hasPhoto = Boolean(previewUrl);
+  const canContinue = agreed && hasPhoto;
 
   return (
     <>
@@ -35,23 +67,58 @@ export function TryOnUploadScreen() {
           </div>
         </div>
 
-        {/* Upload zone */}
-        <button className="mt-[18px] h-[240px] border-[1.5px] border-dashed border-[rgba(20,16,22,0.22)] rounded-[18px] hatch-light cursor-pointer flex flex-col items-center justify-center gap-[10px]">
-          <div className="w-[48px] h-[48px] rounded-full bg-[#141016] text-white flex items-center justify-center text-[22px]">
-            +
-          </div>
-          <span className="font-[family-name:var(--font-grotesk)] font-semibold text-[15px] text-[#141016]">
-            Tap to upload a full-body photo
-          </span>
-          <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.06em] text-[#B6ADA8]">
-            JPG / PNG · best results: front-facing, good light
-          </span>
+        {/* Hidden file input */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleInputChange}
+        />
+
+        {/* Upload zone — flex-1 so it fills all space between header and bottom cards */}
+        <button
+          onClick={() => fileRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          className="mt-[14px] flex-1 min-h-[260px] border-[1.5px] border-dashed rounded-[18px] cursor-pointer flex flex-col items-center justify-center gap-[10px] overflow-hidden relative"
+          style={{
+            borderColor: hasPhoto ? "var(--lav)" : "rgba(20,16,22,0.22)",
+            background: hasPhoto ? "transparent" : undefined,
+          }}
+        >
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt="Your photo"
+              className="absolute inset-0 w-full h-full object-contain object-center"
+            />
+          ) : (
+            <div className="hatch-light absolute inset-0 flex flex-col items-center justify-center gap-[10px]">
+              <div className="w-[48px] h-[48px] rounded-full bg-[#141016] text-white flex items-center justify-center text-[22px]">
+                +
+              </div>
+              <span className="font-[family-name:var(--font-grotesk)] font-semibold text-[15px] text-[#141016]">
+                Tap to upload a full-body photo
+              </span>
+              <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.06em] text-[#B6ADA8]">
+                JPG / PNG · best results: front-facing, good light
+              </span>
+            </div>
+          )}
+
+          {/* Change photo overlay (shown when photo already selected) */}
+          {hasPhoto && (
+            <div className="absolute bottom-[10px] left-1/2 -translate-x-1/2 bg-[rgba(20,16,22,0.7)] text-white px-[14px] py-[6px] rounded-full font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase whitespace-nowrap">
+              Tap to change photo
+            </div>
+          )}
         </button>
 
         {/* Profile nudge */}
         <button
           onClick={() => router.push("/profile-setup?ctx=menu")}
-          className="mt-[12px] flex items-center justify-between px-[16px] py-[14px] rounded-[14px] cursor-pointer border"
+          className="mt-[10px] flex items-center justify-between px-[16px] py-[11px] rounded-[14px] cursor-pointer border"
           style={{
             borderColor: "color-mix(in srgb, var(--lav) 55%, #fff)",
             background: "color-mix(in srgb, var(--lav) 30%, #fff)",
@@ -66,14 +133,22 @@ export function TryOnUploadScreen() {
         </button>
 
         {/* Privacy notice */}
-        <div className="mt-[16px] border border-[rgba(20,16,22,0.1)] rounded-[16px] p-[16px]">
-          <div className="flex items-center gap-[8px]">
-            <span className="text-[14px]">🔒</span>
-            <span className="font-[family-name:var(--font-grotesk)] font-bold text-[14px] text-[#141016]">
-              Privacy First
-            </span>
+        <div className="mt-[10px] border border-[rgba(20,16,22,0.1)] rounded-[16px] p-[12px]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-[6px]">
+              <span className="text-[13px]">🔒</span>
+              <span className="font-[family-name:var(--font-grotesk)] font-bold text-[13px] text-[#141016]">
+                Privacy First
+              </span>
+            </div>
+            <button
+              onClick={() => setPrivacyOpen(true)}
+              className="border-none bg-none p-0 cursor-pointer font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#141016] underline"
+            >
+              View details
+            </button>
           </div>
-          <ul className="m-0 mt-[12px] p-0 list-none flex flex-col gap-[8px]">
+          <ul className="m-0 mt-[8px] p-0 list-none flex flex-col gap-[4px]">
             {[
               "Photos are used for analysis only.",
               "Results are generated using AI.",
@@ -81,7 +156,7 @@ export function TryOnUploadScreen() {
             ].map((item) => (
               <li
                 key={item}
-                className="font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.45] text-[#6B6470] pl-[16px] relative"
+                className="font-[family-name:var(--font-grotesk)] text-[12px] leading-[1.4] text-[#6B6470] pl-[14px] relative"
               >
                 <span
                   className="absolute left-0"
@@ -93,20 +168,14 @@ export function TryOnUploadScreen() {
               </li>
             ))}
           </ul>
-          <button
-            onClick={() => setPrivacyOpen(true)}
-            className="mt-[12px] border-none bg-none p-0 cursor-pointer font-[family-name:var(--font-mono)] text-[11px] tracking-[0.1em] uppercase text-[#141016] underline"
-          >
-            View details
-          </button>
 
           {/* Checkbox row */}
           <button
             onClick={() => setAgreed((a) => !a)}
-            className="mt-[14px] w-full flex items-center gap-[11px] border-none bg-none p-0 cursor-pointer text-left"
+            className="mt-[10px] w-full flex items-center gap-[10px] border-none bg-none p-0 cursor-pointer text-left"
           >
             <span
-              className="w-[22px] h-[22px] flex-none rounded-[7px] flex items-center justify-center text-[13px] text-[#141016] transition-all duration-150"
+              className="w-[20px] h-[20px] flex-none rounded-[6px] flex items-center justify-center text-[12px] text-[#141016] transition-all duration-150"
               style={{
                 border: `1.5px solid ${agreed ? lime : line}`,
                 background: agreed ? lime : "#fff",
@@ -114,24 +183,24 @@ export function TryOnUploadScreen() {
             >
               {agreed ? "✓" : ""}
             </span>
-            <span className="font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.4] text-[#141016]">
+            <span className="font-[family-name:var(--font-grotesk)] text-[12px] leading-[1.4] text-[#141016]">
               I have read and agree to the Image Usage &amp; Privacy Policy.
             </span>
           </button>
         </div>
 
-        <div className="flex-1 min-h-[18px]" />
+        <div className="h-[10px]" />
 
         <button
-          onClick={() => { if (agreed) router.push("/tryon/outfit"); }}
-          className="w-full box-border py-[17px] border-none rounded-full font-[family-name:var(--font-grotesk)] font-semibold text-[15px] cursor-pointer transition-all duration-150"
+          onClick={handleContinue}
+          className="w-full box-border py-[17px] border-none rounded-full font-[family-name:var(--font-grotesk)] font-semibold text-[15px] transition-all duration-150"
           style={{
-            background: agreed ? lav : "#E7E1DE",
-            color: agreed ? ink : "#B6ADA8",
+            background: canContinue ? lav : agreed ? "#E7E1DE" : "#E7E1DE",
+            color: canContinue ? ink : "#B6ADA8",
             cursor: agreed ? "pointer" : "not-allowed",
           }}
         >
-          Continue →
+          {hasPhoto ? "Continue →" : agreed ? "Select a photo first" : "Continue →"}
         </button>
       </section>
 
