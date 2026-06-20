@@ -1,0 +1,160 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { CLOTHING_TYPES } from "@/lib/types";
+import { useOutfitStore } from "@/hooks/useOutfitStore";
+import { TabBar } from "@/components/ui/TabBar";
+import { Chip } from "@/components/ui/Chip";
+
+export function TryOnOutfitScreen() {
+  const router = useRouter();
+  const { items, source, setSource, draftType, setDraftType, addItem, removeItem } = useOutfitStore();
+
+  const ink = "#141016";
+  const lav = "var(--lav)";
+
+  return (
+    <section className="min-h-full flex flex-col px-[20px] pt-[20px] pb-[calc(22px+env(safe-area-inset-bottom))] box-border animate-fade">
+      {/* Step header */}
+      <div className="flex items-center gap-[10px]">
+        <span
+          className="font-[family-name:var(--font-bodoni)] text-[34px] leading-none"
+          style={{ color: "color-mix(in srgb, var(--lav) 62%, #4E3556)" }}
+        >
+          2
+        </span>
+        <div>
+          <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.16em] uppercase text-[#9A9298]">
+            Step 2 of 2
+          </div>
+          <h1 className="m-0 mt-[2px] font-[family-name:var(--font-bodoni)] font-medium text-[28px] leading-none text-[#141016]">
+            Build the outfit
+          </h1>
+        </div>
+      </div>
+
+      <p className="mt-[14px] mb-0 font-[family-name:var(--font-grotesk)] text-[13.5px] leading-[1.45] text-[#6B6470]">
+        Add every piece you want to try. The AI styles the complete look together and returns one overall report.
+      </p>
+
+      {/* Outfit list header */}
+      <div className="mt-[20px] flex items-center justify-between">
+        <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.14em] uppercase text-[#141016]">
+          Your outfit
+        </span>
+        <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.08em] text-[#9A9298]">
+          {items.length} {items.length === 1 ? "item" : "items"}
+        </span>
+      </div>
+
+      {/* Items */}
+      <div className="mt-[10px] flex flex-col gap-[8px]">
+        {items.length === 0 && (
+          <div className="p-[18px] border border-dashed border-[rgba(20,16,22,0.18)] rounded-[14px] text-center font-[family-name:var(--font-mono)] text-[11px] tracking-[0.06em] text-[#B6ADA8]">
+            No pieces yet — add your first below.
+          </div>
+        )}
+        {items.map((it) => (
+          <div
+            key={it.id}
+            className="flex items-center gap-[12px] p-[10px] border border-[rgba(20,16,22,0.1)] rounded-[14px]"
+          >
+            <div className="w-[38px] h-[48px] flex-none rounded-[8px] border border-[rgba(20,16,22,0.06)] hatch" />
+            <div className="flex-1 min-w-0">
+              <div className="font-[family-name:var(--font-bodoni)] text-[18px] leading-[1.1] text-[#141016]">
+                {it.name}
+              </div>
+              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.08em] uppercase text-[#9A9298] mt-[3px]">
+                {it.type} · {it.source}
+              </div>
+            </div>
+            <button
+              onClick={() => removeItem(it.id)}
+              className="w-[28px] h-[28px] flex-none rounded-full border border-[rgba(20,16,22,0.12)] bg-white cursor-pointer text-[#141016] text-[15px] leading-none flex items-center justify-center"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Composer */}
+      <div className="mt-[16px] border border-[rgba(20,16,22,0.1)] rounded-[16px] p-[14px]">
+        <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.14em] uppercase text-[#141016]">
+          Add a piece
+        </span>
+
+        <div className="mt-[10px]">
+          <TabBar
+            tabs={[
+              { label: "Paste link",    value: "url"   },
+              { label: "Upload image",  value: "image" },
+            ]}
+            active={source}
+            onChange={(v) => setSource(v as "url" | "image")}
+            bordered
+          />
+        </div>
+
+        {source === "url" && (
+          <input
+            placeholder="https://store.com/the-piece"
+            className="mt-[12px] w-full box-border py-[14px] px-[16px] border border-[rgba(20,16,22,0.12)] rounded-[14px] bg-white font-[family-name:var(--font-grotesk)] text-[15px] text-[#141016] outline-none"
+          />
+        )}
+        {source === "image" && (
+          <button className="mt-[12px] w-full h-[104px] border-[1.5px] border-dashed border-[rgba(20,16,22,0.22)] rounded-[14px] hatch-light cursor-pointer flex flex-col items-center justify-center gap-[7px]">
+            <div className="w-[36px] h-[36px] rounded-full bg-[#141016] text-white flex items-center justify-center text-[18px]">
+              +
+            </div>
+            <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.06em] text-[#B6ADA8]">
+              Upload a clothing photo
+            </span>
+          </button>
+        )}
+
+        <div className="mt-[14px]">
+          <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.14em] uppercase text-[#9A9298] block mb-[10px]">
+            Clothing type
+          </span>
+          <div className="flex flex-wrap gap-[8px]">
+            {CLOTHING_TYPES.map((c) => (
+              <Chip
+                key={c}
+                label={c}
+                active={draftType === c}
+                onClick={() => setDraftType(c)}
+              />
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={addItem}
+          className="w-full box-border py-[15px] mt-[14px] border-none rounded-full font-[family-name:var(--font-grotesk)] font-semibold text-[15px] cursor-pointer transition-all duration-150"
+          style={{
+            background: draftType ? ink : "#E7E1DE",
+            color: draftType ? "#fff" : "#B6ADA8",
+            cursor: draftType ? "pointer" : "not-allowed",
+          }}
+        >
+          + Add item
+        </button>
+      </div>
+
+      <div className="flex-1 min-h-[18px]" />
+
+      <button
+        onClick={() => { if (items.length) router.push("/tryon/analyzing"); }}
+        className="w-full box-border py-[17px] border-none rounded-full font-[family-name:var(--font-grotesk)] font-semibold text-[15px] cursor-pointer transition-all duration-150"
+        style={{
+          background: items.length ? lav : "#E7E1DE",
+          color: items.length ? ink : "#B6ADA8",
+          cursor: items.length ? "pointer" : "not-allowed",
+        }}
+      >
+        Analyze the look ✦
+      </button>
+    </section>
+  );
+}
