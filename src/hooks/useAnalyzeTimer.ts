@@ -16,7 +16,7 @@ export function useAnalyzeTimer() {
 
     toRef.current = setTimeout(() => {
       if (ivRef.current) clearInterval(ivRef.current);
-      router.push("/results");
+      router.push("/tryon/results");
     }, 2950);
 
     return () => {

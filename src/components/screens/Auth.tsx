@@ -6,6 +6,20 @@ import { AuthMode, Gender } from "@/lib/types";
 import { TabBar } from "@/components/ui/TabBar";
 import { Input } from "@/components/ui/Input";
 import { Pill } from "@/components/ui/Chip";
+import {
+  validateEmail,
+  validatePassword,
+  validateConfirmPassword,
+  validateName,
+} from "@/lib/validation";
+
+interface AuthErrors {
+  name?: string;
+  email?: string;
+  password?: string;
+  confirm?: string;
+  gender?: string;
+}
 
 export function AuthScreen() {
   const router = useRouter();
@@ -15,18 +29,83 @@ export function AuthScreen() {
   );
   const [gender, setGender] = useState<Gender>(null);
 
+  const [name, setName]         = useState("");
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm]   = useState("");
+  const [errors, setErrors]     = useState<AuthErrors>({});
+  const [touched, setTouched]   = useState<Record<string, boolean>>({});
+
   const isRegister = mode === "register";
 
-  function handleSubmit() {
+  function touch(field: string) {
+    setTouched((t) => ({ ...t, [field]: true }));
+  }
+
+  function validate(): AuthErrors {
+    const e: AuthErrors = {};
     if (isRegister) {
-      router.push("/profile-setup");
+      const nameErr = validateName(name);
+      if (nameErr) e.name = nameErr;
+    }
+    const emailErr = validateEmail(email);
+    if (emailErr) e.email = emailErr;
+    const pwErr = validatePassword(password);
+    if (pwErr) e.password = pwErr;
+    if (isRegister) {
+      const cfErr = validateConfirmPassword(confirm, password);
+      if (cfErr) e.confirm = cfErr;
+      if (!gender) e.gender = "Please select your gender.";
+    }
+    return e;
+  }
+
+  function handleSubmit() {
+    // Mark all fields as touched so errors show
+    const allTouched: Record<string, boolean> = {
+      email: true, password: true,
+    };
+    if (isRegister) {
+      allTouched.name = true;
+      allTouched.confirm = true;
+      allTouched.gender = true;
+    }
+    setTouched(allTouched);
+
+    const e = validate();
+    setErrors(e);
+    if (Object.keys(e).length > 0) return;
+
+    if (isRegister) {
+      router.push(`/profile-setup?gender=${gender ?? "female"}`);
     } else {
       router.push("/home");
     }
   }
 
+  // Re-validate on change once a field has been touched
+  function handleChange(
+    field: keyof AuthErrors,
+    value: string,
+    setter: (v: string) => void
+  ) {
+    setter(value);
+    if (!touched[field]) return;
+    const current = { name, email, password, confirm, [field]: value };
+    const e: AuthErrors = { ...errors };
+    if (field === "name")     e.name    = validateName(current.name);
+    if (field === "email")    e.email   = validateEmail(current.email);
+    if (field === "password") e.password = validatePassword(current.password);
+    if (field === "confirm")  e.confirm  = validateConfirmPassword(current.confirm, current.password);
+    if (!e.name)    delete e.name;
+    if (!e.email)   delete e.email;
+    if (!e.password) delete e.password;
+    if (!e.confirm) delete e.confirm;
+    setErrors(e);
+  }
+
   return (
-    <section className="min-h-full flex flex-col px-[22px] pt-[22px] pb-[calc(24px+env(safe-area-inset-bottom)] box-border animate-fade">
+    <section className="min-h-full flex flex-col px-[22px] pt-[22px] pb-[calc(24px+env(safe-area-inset-bottom))] box-border animate-fade">
       <button
         onClick={() => router.push("/landing")}
         className="self-start w-[34px] h-[34px] rounded-full border border-[rgba(20,16,22,0.12)] bg-white cursor-pointer text-[15px] text-[#141016] flex items-center justify-center"
@@ -48,19 +127,73 @@ export function AuthScreen() {
             { label: "Log in",   value: "login"    },
           ]}
           active={mode}
-          onChange={(v) => setMode(v as AuthMode)}
+          onChange={(v) => {
+            setMode(v as AuthMode);
+            setErrors({});
+            setTouched({});
+          }}
         />
       </div>
 
       <div className="flex flex-col gap-[14px] mt-[16px]">
         {isRegister && (
-          <Input label="Full name" placeholder="Mara Vance" />
+          <Input
+            label="Full name"
+            placeholder="Mara Vance"
+            value={name}
+            error={touched.name ? errors.name : undefined}
+            onChange={(e) => handleChange("name", e.target.value, setName)}
+            onBlur={() => touch("name")}
+            autoComplete="name"
+          />
         )}
-        <Input label="Email" type="email" placeholder="you@email.com" />
-        <Input label="Password" type="password" placeholder="••••••••" />
+        <Input
+          label="Email"
+          type="email"
+          placeholder="you@email.com"
+          value={email}
+          error={touched.email ? errors.email : undefined}
+          onChange={(e) => handleChange("email", e.target.value, setEmail)}
+          onBlur={() => touch("email")}
+          autoComplete="email"
+          inputMode="email"
+          dir="ltr"
+        />
+        <div>
+          <Input
+            label="Password"
+            showToggle
+            placeholder="••••••••"
+            value={password}
+            error={touched.password ? errors.password : undefined}
+            onChange={(e) => handleChange("password", e.target.value, setPassword)}
+            onBlur={() => touch("password")}
+            autoComplete={isRegister ? "new-password" : "current-password"}
+          />
+          {!isRegister && (
+            <div className="flex justify-end mt-[6px]">
+              <button
+                type="button"
+                onClick={() => router.push("/forgot-password")}
+                className="font-[family-name:var(--font-grotesk)] text-[12px] text-[#9A9298] hover:text-[#141016] transition-colors bg-transparent border-none cursor-pointer p-0 underline underline-offset-2"
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+        </div>
         {isRegister && (
           <>
-            <Input label="Confirm password" type="password" placeholder="••••••••" />
+            <Input
+              label="Confirm password"
+              showToggle
+              placeholder="••••••••"
+              value={confirm}
+              error={touched.confirm ? errors.confirm : undefined}
+              onChange={(e) => handleChange("confirm", e.target.value, setConfirm)}
+              onBlur={() => touch("confirm")}
+              autoComplete="new-password"
+            />
             <div>
               <label className="block mb-[7px] font-[family-name:var(--font-mono)] text-[11px] tracking-[0.14em] uppercase text-[#9A9298]">
                 Gender
@@ -71,10 +204,18 @@ export function AuthScreen() {
                     key={g}
                     label={g === "male" ? "Male" : "Female"}
                     active={gender === g}
-                    onClick={() => setGender(g)}
+                    onClick={() => {
+                      setGender(g);
+                      setErrors((e) => { const n = { ...e }; delete n.gender; return n; });
+                    }}
                   />
                 ))}
               </div>
+              {touched.gender && errors.gender && (
+                <p className="mt-[5px] font-[family-name:var(--font-grotesk)] text-[12px] text-red-500">
+                  {errors.gender}
+                </p>
+              )}
             </div>
           </>
         )}

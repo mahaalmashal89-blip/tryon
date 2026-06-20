@@ -12,7 +12,7 @@ export function LandingScreen() {
   return (
     <section className="min-h-full flex flex-col animate-fade">
       {/* Top bar */}
-      <div className="flex-none flex items-center justify-between px-[20px] pt-[18px] pb-[10px]">
+      <div className="flex-none flex items-center justify-between px-[20px] pt-[18px] pb-[10px]" style={{ borderBottom: "1px solid var(--lime)" }}>
         <span className="font-[family-name:var(--font-grotesk)] font-bold text-[18px] tracking-[0.04em] text-[#141016]">
           TRYON
         </span>
@@ -28,17 +28,15 @@ export function LandingScreen() {
       {hero === "a" && (
         <div className="px-[20px] pt-[8px]">
           <div
-            className="relative h-[340px] rounded-[20px] overflow-hidden border border-[rgba(20,16,22,0.08)] hatch"
+            className="relative w-full rounded-[20px] overflow-hidden border border-[rgba(20,16,22,0.08)]"
+            style={{ aspectRatio: "1535 / 1024" }}
           >
-            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.14em] text-[#8C7F92] text-center">
-              [ HERO · BEFORE → AFTER ]<br />fashion editorial shot
-            </span>
-            <span className="absolute top-[16px] left-[16px] font-[family-name:var(--font-mono)] text-[10px] tracking-[0.18em] uppercase text-white bg-[#141016] px-[10px] py-[6px] rounded-full">
-              AI Fashion Studio
-            </span>
-            <span className="absolute bottom-[16px] right-[16px] w-[54px] h-[54px] rounded-full bg-[#141016] text-white flex items-center justify-center font-[family-name:var(--font-bodoni)] italic text-[15px]">
-              &apos;26
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/hero-editorial.jpg"
+              alt="Before and after — AI fashion try-on"
+              className="absolute inset-0 w-full h-full object-cover object-center"
+            />
           </div>
           <div className="pt-[22px]">
             <h1 className="m-0 font-[family-name:var(--font-bodoni)] font-medium text-[46px] leading-[0.96] tracking-[-0.01em] text-[#141016]">
@@ -58,10 +56,13 @@ export function LandingScreen() {
             Try it<br /><em>on.</em><br />Then decide.
           </h1>
           <div className="flex gap-[14px] mt-[18px] items-stretch">
-            <div className="flex-1 relative h-[200px] rounded-[18px] overflow-hidden hatch border border-[rgba(20,16,22,0.08)]">
-              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] text-[#8C7F92] text-center">
-                [ MODEL ]
-              </span>
+            <div className="flex-1 relative h-[200px] rounded-[18px] overflow-hidden border border-[rgba(20,16,22,0.08)] bg-[#EAE5F5]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/hero-editorial.jpg"
+                alt="Before and after — AI fashion try-on"
+                className="absolute inset-0 w-full h-full object-contain object-center"
+              />
             </div>
             <div className="w-[96px] flex flex-col justify-between font-[family-name:var(--font-mono)] text-[11px] tracking-[0.06em] text-[#6B6470]">
               <span>01 / Upload</span>

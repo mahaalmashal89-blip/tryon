@@ -9,15 +9,14 @@ export function HomeScreen() {
     <section className="min-h-full flex flex-col animate-fade">
       {/* Banner */}
       <div className="px-[20px] pt-[18px]">
-        <div className="relative h-[200px] rounded-[18px] overflow-hidden hatch border border-[rgba(20,16,22,0.08)]">
-          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] text-[#8C7F92]">
-            [ HOW TRYON WORKS ]
-          </span>
-          <div className="absolute left-[16px] bottom-[16px] right-[16px] flex justify-between font-[family-name:var(--font-mono)] text-[10px] tracking-[0.08em] text-[#C8EA75]">
-            <span>01 PHOTO</span>
-            <span>02 OUTFIT</span>
-            <span>03 VERDICT</span>
-          </div>
+        <div className="relative rounded-[18px] overflow-hidden border border-[rgba(20,16,22,0.08)]" style={{ background: "#EDE5F2" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/how-tryon-works.jpg"
+            alt="How TRYON Works"
+            className="w-full h-auto block"
+            style={{ display: "block" }}
+          />
         </div>
       </div>
 

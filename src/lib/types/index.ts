@@ -51,6 +51,27 @@ export const MEASURE_FIELDS: MeasureField[] = [
   { label: "Usual size", ph: "M",   unit: ""   },
 ];
 
+export const FEMALE_MEASURE_FIELDS: MeasureField[] = [
+  { label: "Height",     ph: "170", unit: "cm" },
+  { label: "Weight",     ph: "62",  unit: "kg" },
+  { label: "Bust",       ph: "88",  unit: "cm" },
+  { label: "Waist",      ph: "72",  unit: "cm" },
+  { label: "Hips",       ph: "96",  unit: "cm" },
+  { label: "Usual size", ph: "",    unit: ""   },
+];
+
+export const MALE_MEASURE_FIELDS: MeasureField[] = [
+  { label: "Height",     ph: "175", unit: "cm" },
+  { label: "Weight",     ph: "78",  unit: "kg" },
+  { label: "Chest",      ph: "98",  unit: "cm" },
+  { label: "Waist",      ph: "82",  unit: "cm" },
+  { label: "Shoulders",  ph: "46",  unit: "cm" },
+  { label: "Usual size", ph: "",    unit: ""   },
+];
+
+export const CLOTHING_SIZES = ["XS", "S", "M", "L", "XL", "XXL"] as const;
+export type ClothingSize = typeof CLOTHING_SIZES[number];
+
 export const ANALYZE_STEPS = [
   "Reading your photo",
   "Assembling the outfit",
