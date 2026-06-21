@@ -12,6 +12,7 @@ import {
   validateConfirmPassword,
   validateName,
 } from "@/lib/validation";
+import { createClient } from "@/lib/supabase/client";
 
 interface AuthErrors {
   name?: string;
@@ -35,6 +36,8 @@ export function AuthScreen() {
   const [confirm, setConfirm]   = useState("");
   const [errors, setErrors]     = useState<AuthErrors>({});
   const [touched, setTouched]   = useState<Record<string, boolean>>({});
+  const [loading, setLoading]   = useState(false);
+  const [authError, setAuthError] = useState("");
 
   const isRegister = mode === "register";
 
@@ -60,7 +63,7 @@ export function AuthScreen() {
     return e;
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     // Mark all fields as touched so errors show
     const allTouched: Record<string, boolean> = {
       email: true, password: true,
@@ -76,9 +79,22 @@ export function AuthScreen() {
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
+    setLoading(true);
+    setAuthError("");
+
+    const supabase = createClient();
+
     if (isRegister) {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: name, gender } },
+      });
+      if (error) { setAuthError(error.message); setLoading(false); return; }
       router.push(`/profile-setup?gender=${gender ?? "female"}`);
     } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) { setAuthError(error.message); setLoading(false); return; }
       router.push("/home");
     }
   }
@@ -223,12 +239,19 @@ export function AuthScreen() {
 
       <div className="flex-1" />
 
+      {authError && (
+        <p className="mt-[12px] font-[family-name:var(--font-grotesk)] text-[13px] text-red-500 text-center leading-snug">
+          {authError}
+        </p>
+      )}
+
       <button
         onClick={handleSubmit}
-        className="w-full box-border py-[17px] mt-[24px] border-none rounded-full font-[family-name:var(--font-grotesk)] font-semibold text-[15px] text-[#141016] cursor-pointer"
+        disabled={loading}
+        className="w-full box-border py-[17px] mt-[12px] border-none rounded-full font-[family-name:var(--font-grotesk)] font-semibold text-[15px] text-[#141016] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         style={{ background: "var(--lav)" }}
       >
-        {isRegister ? "Create account" : "Log in"}
+        {loading ? "Please wait…" : isRegister ? "Create account" : "Log in"}
       </button>
     </section>
   );

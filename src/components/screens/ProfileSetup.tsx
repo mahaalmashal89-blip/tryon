@@ -52,19 +52,20 @@ export function ProfileSetupScreen() {
 
   // Load saved profile on mount
   useEffect(() => {
-    const saved = loadProfile();
-    if (!saved) return;
-    setValues(
-      Object.fromEntries(
-        numericFields.map((f) => {
-          const key = LABEL_TO_KEY[f.label];
-          return [f.label, key ? (saved[key] as string) ?? "" : ""];
-        })
-      )
-    );
-    if (saved.size && CLOTHING_SIZES.includes(saved.size as ClothingSize)) {
-      setSize(saved.size as ClothingSize);
-    }
+    loadProfile().then((saved) => {
+      if (!saved) return;
+      setValues(
+        Object.fromEntries(
+          numericFields.map((f) => {
+            const key = LABEL_TO_KEY[f.label];
+            return [f.label, key ? (saved[key] as string) ?? "" : ""];
+          })
+        )
+      );
+      if (saved.size && CLOTHING_SIZES.includes(saved.size as ClothingSize)) {
+        setSize(saved.size as ClothingSize);
+      }
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -103,7 +104,7 @@ export function ProfileSetupScreen() {
     if (!size) setSizeError("Please select your usual size.");
     if (Object.keys(newErrors).length > 0 || !size) return;
 
-    // Persist to storage
+    // Persist to Supabase
     saveProfile({
       gender,
       height: values["Height"]    ?? "",
@@ -112,9 +113,9 @@ export function ProfileSetupScreen() {
       waist:  values["Waist"]     ?? "",
       hips:   values["Hips"]      ?? values["Shoulders"] ?? "",
       size,
+    }).then(() => {
+      router.push(ctx === "reg" ? "/success" : "/home");
     });
-
-    router.push(ctx === "reg" ? "/success" : "/home");
   }
 
   function skip() {

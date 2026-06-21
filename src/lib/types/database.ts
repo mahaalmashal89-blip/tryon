@@ -1,8 +1,3 @@
-/**
- * Supabase database type stubs.
- * Replace this file with the output of `supabase gen types typescript`
- * once the schema is created.
- */
 export type Json =
   | string
   | number
@@ -19,17 +14,39 @@ export interface Database {
           id: string;
           full_name: string | null;
           gender: "male" | "female" | null;
-          height_cm: number | null;
-          weight_kg: number | null;
-          waist_cm: number | null;
-          hips_cm: number | null;
-          bust_cm: number | null;
+          height: string | null;
+          weight: string | null;
+          waist: string | null;
+          hips: string | null;
+          bust: string | null;
           usual_size: string | null;
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["profiles"]["Row"], "created_at" | "updated_at">;
-        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+        Insert: {
+          id: string;
+          full_name?: string | null;
+          gender?: "male" | "female" | null;
+          height?: string | null;
+          weight?: string | null;
+          waist?: string | null;
+          hips?: string | null;
+          bust?: string | null;
+          usual_size?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          full_name?: string | null;
+          gender?: "male" | "female" | null;
+          height?: string | null;
+          weight?: string | null;
+          waist?: string | null;
+          hips?: string | null;
+          bust?: string | null;
+          usual_size?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       wardrobe_items: {
         Row: {
@@ -43,8 +60,25 @@ export interface Database {
           verdict: "BUY" | "MAYBE" | "SKIP" | null;
           created_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["wardrobe_items"]["Row"], "id" | "created_at">;
-        Update: Partial<Database["public"]["Tables"]["wardrobe_items"]["Insert"]>;
+        Insert: {
+          user_id: string;
+          name: string;
+          clothing_type: string;
+          source_url?: string | null;
+          image_url?: string | null;
+          score?: number | null;
+          verdict?: "BUY" | "MAYBE" | "SKIP" | null;
+        };
+        Update: {
+          user_id?: string;
+          name?: string;
+          clothing_type?: string;
+          source_url?: string | null;
+          image_url?: string | null;
+          score?: number | null;
+          verdict?: "BUY" | "MAYBE" | "SKIP" | null;
+        };
+        Relationships: [];
       };
       tryon_sessions: {
         Row: {
@@ -58,8 +92,25 @@ export interface Database {
           tips: Json;
           created_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["tryon_sessions"]["Row"], "id" | "created_at">;
-        Update: Partial<Database["public"]["Tables"]["tryon_sessions"]["Insert"]>;
+        Insert: {
+          user_id: string;
+          user_photo_url?: string | null;
+          outfit_items?: Json;
+          result_image_url?: string | null;
+          score?: number | null;
+          verdict?: string | null;
+          tips?: Json;
+        };
+        Update: {
+          user_id?: string;
+          user_photo_url?: string | null;
+          outfit_items?: Json;
+          result_image_url?: string | null;
+          score?: number | null;
+          verdict?: string | null;
+          tips?: Json;
+        };
+        Relationships: [];
       };
     };
     Views: Record<string, never>;

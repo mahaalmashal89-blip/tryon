@@ -1,9 +1,4 @@
-/**
- * Persists user profile measurements to localStorage.
- * Swap the read/write functions here when Supabase auth is wired up.
- */
-
-const KEY = "tryon_profile";
+import { createClient } from "@/lib/supabase/client";
 
 export interface StoredProfile {
   gender: "male" | "female";
@@ -15,20 +10,44 @@ export interface StoredProfile {
   size: string;
 }
 
-export function saveProfile(data: StoredProfile): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-  } catch {
-    // storage unavailable — fail silently
-  }
+export async function saveProfile(data: StoredProfile): Promise<void> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase.from("profiles").upsert({
+    id: user.id,
+    gender: data.gender,
+    height: data.height,
+    weight: data.weight,
+    bust: data.bust,
+    waist: data.waist,
+    hips: data.hips,
+    usual_size: data.size,
+    updated_at: new Date().toISOString(),
+  });
 }
 
-export function loadProfile(): StoredProfile | null {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as StoredProfile;
-  } catch {
-    return null;
-  }
+export async function loadProfile(): Promise<StoredProfile | null> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("gender, height, weight, bust, waist, hips, usual_size")
+    .eq("id", user.id)
+    .single();
+
+  if (!data) return null;
+
+  return {
+    gender: (data.gender as "male" | "female") ?? "female",
+    height: data.height ?? "",
+    weight: data.weight ?? "",
+    bust:   data.bust   ?? "",
+    waist:  data.waist  ?? "",
+    hips:   data.hips   ?? "",
+    size:   data.usual_size ?? "",
+  };
 }
