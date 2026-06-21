@@ -1,17 +1,30 @@
-/**
- * Auth proxy stub — refreshes Supabase session on every request.
- * Uncomment and configure once Supabase auth is wired up.
- * File renamed from middleware.ts to proxy.ts (Next.js 16 convention).
- */
-
+import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-// import { createServerClient } from "@supabase/ssr";
+export async function proxy(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request });
 
-export function proxy(request: NextRequest) {
-  // Stub: pass all requests through.
-  // Replace with real Supabase session refresh when auth is ready.
-  return NextResponse.next({ request });
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll(); },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  // Refresh session so it doesn't expire mid-session
+  await supabase.auth.getUser();
+
+  return supabaseResponse;
 }
 
 export const config = {
