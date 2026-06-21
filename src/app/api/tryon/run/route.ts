@@ -22,12 +22,10 @@ export async function POST(req: NextRequest) {
       "Authorization": `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model_name: "tryon-v1.6",
+      model_name: "tryon-max",
       inputs: {
         model_image,
-        garment_image,
-        category,
-        num_samples: 1,
+        product_image: garment_image, // tryon-max uses product_image, not garment_image
       },
     }),
   });
