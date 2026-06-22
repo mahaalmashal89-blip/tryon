@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ANALYZE_STEPS } from "@/lib/types";
 import { tryonSession } from "@/lib/tryonSession";
 import { getFashnCategory, sortByLayer, fileToDataUrl, sleep } from "@/lib/fashn";
+import { saveTryonSession } from "@/lib/tryonStore";
 
 const MAX_POLL_ATTEMPTS = 90; // 3 minutes at 2-second intervals
 
@@ -106,9 +107,10 @@ export function AnalyzingScreen() {
         currentModel = resultUrl;
       }
 
-      // Step 3 — done
+      // Step 3 — done; persist history to Supabase (no user photo — zero data retention)
       setStep(3);
       tryonSession.setResult(currentModel);
+      await saveTryonSession(sorted, currentModel);
       await sleep(500);
       router.push("/tryon/results");
 

@@ -84,31 +84,18 @@ export interface Database {
         Row: {
           id: string;
           user_id: string;
-          user_photo_url: string | null;
-          outfit_items: Json;
+          garments: Json;
           result_image_url: string | null;
-          score: number | null;
-          verdict: string | null;
-          tips: Json;
           created_at: string;
         };
         Insert: {
           user_id: string;
-          user_photo_url?: string | null;
-          outfit_items?: Json;
+          garments?: Json;
           result_image_url?: string | null;
-          score?: number | null;
-          verdict?: string | null;
-          tips?: Json;
         };
         Update: {
-          user_id?: string;
-          user_photo_url?: string | null;
-          outfit_items?: Json;
+          garments?: Json;
           result_image_url?: string | null;
-          score?: number | null;
-          verdict?: string | null;
-          tips?: Json;
         };
         Relationships: [];
       };
