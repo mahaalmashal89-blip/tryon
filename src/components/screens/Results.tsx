@@ -14,42 +14,35 @@ export function ResultsScreen() {
   const [variant, setVariant] = useState<ResultsVariant>("a");
   const resultUrl = tryonSession.getResult();
 
-  return (
-    <section className="min-h-full flex flex-col animate-fade">
-      <div className="px-[20px] pt-[18px]">
-        <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#9A9298]">
-          AI Stylist Report
-        </span>
-      </div>
-
-      {/* Try-on preview */}
-      <div className="px-[20px] pt-[10px]">
-        <div className="relative h-[380px] rounded-[20px] overflow-hidden border border-[rgba(20,16,22,0.08)] bg-white">
-          {resultUrl ? (
-            <img
-              src={resultUrl}
-              alt="AI-generated try-on result"
-              className="absolute inset-0 w-full h-full object-contain object-center"
-              style={{ background: "#fff" }}
-            />
-          ) : (
-            <>
-              <div className="hatch absolute inset-0" />
-              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] text-[#8C7F92] text-center">
-                [ AI-GENERATED TRY-ON ]<br />your full look, styled
-              </span>
-            </>
-          )}
-          <span className="absolute top-[14px] left-[14px] font-[family-name:var(--font-mono)] text-[9px] tracking-[0.16em] uppercase text-white bg-[rgba(20,16,22,0.7)] px-[9px] py-[5px] rounded-full">
-            ✦ AI Preview
+  const imagePanel = (
+    <div className="relative rounded-[20px] overflow-hidden border border-[rgba(20,16,22,0.08)] bg-white h-[380px] md:h-full md:min-h-[560px]">
+      {resultUrl ? (
+        <img
+          src={resultUrl}
+          alt="AI-generated try-on result"
+          className="absolute inset-0 w-full h-full object-contain object-center"
+          style={{ background: "#fff" }}
+        />
+      ) : (
+        <>
+          <div className="hatch absolute inset-0" />
+          <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] text-[#8C7F92] text-center">
+            [ AI-GENERATED TRY-ON ]<br />your full look, styled
           </span>
-          <ScoreCircle score={SCORE} />
-        </div>
-      </div>
+        </>
+      )}
+      <span className="absolute top-[14px] left-[14px] font-[family-name:var(--font-mono)] text-[9px] tracking-[0.16em] uppercase text-white bg-[rgba(20,16,22,0.7)] px-[9px] py-[5px] rounded-full">
+        ✦ AI Preview
+      </span>
+      <ScoreCircle score={SCORE} />
+    </div>
+  );
 
-      {/* Variant A — Report card */}
+  const verdictContent = (
+    <>
+      {/* Variant A */}
       {variant === "a" && (
-        <div className="px-[20px] pt-[22px]">
+        <div>
           <h1 className="m-0 mb-[16px] font-[family-name:var(--font-bodoni)] font-medium text-[30px] leading-none text-[#141016]">
             The verdict
           </h1>
@@ -77,9 +70,9 @@ export function ResultsScreen() {
         </div>
       )}
 
-      {/* Variant B — Magazine */}
+      {/* Variant B */}
       {variant === "b" && (
-        <div className="px-[20px] pt-[22px]">
+        <div>
           <div className="flex items-end gap-[14px] pb-[18px]" style={{ borderBottom: "1px solid rgba(20,16,22,0.1)" }}>
             <span className="font-[family-name:var(--font-bodoni)] font-semibold text-[84px] leading-[0.8] tracking-[-0.02em] text-[#141016]">
               {SCORE}
@@ -117,10 +110,10 @@ export function ResultsScreen() {
       )}
 
       {/* Buy banner */}
-      <div className="px-[20px] pt-[22px]">
+      <div className="mt-[22px]">
         <div className="flex items-center gap-[14px] p-[18px] rounded-[18px] bg-[#141016]">
           <div
-            className="w-[48px] h-[48px] rounded-full flex items-center justify-center text-[22px] text-[#141016]"
+            className="w-[48px] h-[48px] flex-none rounded-full flex items-center justify-center text-[22px] text-[#141016]"
             style={{ background: "var(--lime)" }}
           >
             ✓
@@ -137,7 +130,7 @@ export function ResultsScreen() {
       </div>
 
       {/* Actions */}
-      <div className="px-[20px] pt-[16px] pb-[calc(22px+env(safe-area-inset-bottom))] flex gap-[10px] items-center">
+      <div className="mt-[16px] pb-[calc(22px+env(safe-area-inset-bottom))] md:pb-[22px] flex gap-[10px] items-center">
         <button
           onClick={() => router.push("/wardrobe")}
           className="flex-1 py-[16px] border-none rounded-full font-[family-name:var(--font-grotesk)] font-semibold text-[14px] text-[#141016] cursor-pointer"
@@ -157,6 +150,37 @@ export function ResultsScreen() {
           onChange={(v) => setVariant(v.toLowerCase() as ResultsVariant)}
         />
       </div>
+    </>
+  );
+
+  return (
+    <section className="min-h-full animate-fade">
+
+      {/* ── MOBILE layout (single column) ── */}
+      <div className="flex flex-col md:hidden">
+        <div className="px-[20px] pt-[18px]">
+          <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#9A9298]">
+            AI Stylist Report
+          </span>
+        </div>
+        <div className="px-[20px] pt-[10px]">{imagePanel}</div>
+        <div className="px-[20px] pt-[22px]">{verdictContent}</div>
+      </div>
+
+      {/* ── DESKTOP layout (two columns) ── */}
+      <div className="hidden md:grid md:grid-cols-[55%_1fr] md:min-h-full md:max-w-[1400px] md:mx-auto md:px-[40px] md:py-[40px] md:gap-[60px]">
+        {/* Left: image */}
+        <div className="md:sticky md:top-[40px] md:self-start">
+          <span className="block mb-[16px] font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#9A9298]">
+            AI Stylist Report
+          </span>
+          {imagePanel}
+        </div>
+
+        {/* Right: verdict + actions */}
+        <div>{verdictContent}</div>
+      </div>
+
     </section>
   );
 }
