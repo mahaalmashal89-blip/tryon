@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ResultsVariant, STYLING_TIPS } from "@/lib/types";
 import { MiniTab } from "@/components/ui/TabBar";
@@ -12,7 +12,10 @@ const SCORE = 87;
 export function ResultsScreen() {
   const router = useRouter();
   const [variant, setVariant] = useState<ResultsVariant>("a");
-  const resultUrl = tryonSession.getResult();
+  const [mounted, setMounted] = useState(false);
+  const resultUrl = mounted ? tryonSession.getResult() : null;
+
+  useEffect(() => { setMounted(true); }, []);
 
   const imagePanel = (
     <div className="relative rounded-[20px] overflow-hidden border border-[rgba(20,16,22,0.08)] bg-white h-[380px] md:h-full md:min-h-[560px]">
