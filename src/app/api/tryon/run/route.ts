@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
       model_name: "tryon-max",
       inputs: {
         model_image,
-        product_image: garment_image, // tryon-max uses product_image, not garment_image
+        product_image: garment_image,
+        category,               // tell FASHN the exact garment type — prevents auto-detection splitting a dress into top+bottom
       },
     }),
   });
@@ -33,7 +34,6 @@ export async function POST(req: NextRequest) {
   const data = await fashnRes.json();
 
   if (!fashnRes.ok) {
-    // Surface FASHN's message so the client can show it
     const msg = data.message ?? data.error ?? `FASHN API error (${fashnRes.status})`;
     return Response.json({ error: msg }, { status: fashnRes.status });
   }
