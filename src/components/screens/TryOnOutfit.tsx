@@ -28,7 +28,7 @@ export function TryOnOutfitScreen() {
     (source === "url" ? draftUrl.trim().length > 0 : draftPreview !== "");
 
   return (
-    <section className="min-h-full flex flex-col px-[20px] pt-[20px] pb-[calc(22px+env(safe-area-inset-bottom))] box-border animate-fade md:max-w-[680px] md:mx-auto md:w-full md:px-[40px] md:pt-[40px] md:pb-[40px]">
+    <section className="min-h-full flex flex-col px-[20px] pt-[20px] pb-[calc(22px+env(safe-area-inset-bottom))] box-border animate-fade md:px-[40px] md:pt-[40px] md:pb-[40px]">
       {/* Step header */}
       <div className="flex items-center gap-[10px]">
         <span

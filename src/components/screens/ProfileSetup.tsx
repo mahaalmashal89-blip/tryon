@@ -123,7 +123,7 @@ export function ProfileSetupScreen() {
   }
 
   return (
-    <section className="min-h-full flex flex-col px-[22px] pt-[24px] pb-[calc(24px+env(safe-area-inset-bottom))] box-border animate-fade md:max-w-[560px] md:mx-auto md:w-full md:px-0 md:pt-[40px]">
+    <section className="min-h-full flex flex-col px-[22px] pt-[24px] pb-[calc(24px+env(safe-area-inset-bottom))] box-border animate-fade md:px-[40px] md:pt-[40px]">
       <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#141016]">
         Optional · for better accuracy
       </span>

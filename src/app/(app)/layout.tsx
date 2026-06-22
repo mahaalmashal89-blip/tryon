@@ -25,7 +25,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <PhoneShell>
       <Chrome showBack={showBack} onMenuToggle={() => setMenuOpen((o) => !o)} />
       <div className="flex-1 overflow-y-auto relative">
-        {children}
+        {/* Global desktop centering — all app screens inherit this constraint */}
+        <div className="min-h-full w-full md:max-w-[880px] md:mx-auto">
+          {children}
+        </div>
       </div>
       <SlideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </PhoneShell>

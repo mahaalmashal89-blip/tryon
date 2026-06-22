@@ -171,7 +171,7 @@ export function ResultsScreen() {
       </div>
 
       {/* ── DESKTOP layout (two columns) ── */}
-      <div className="hidden md:grid md:grid-cols-[55%_1fr] md:min-h-full md:max-w-[1400px] md:mx-auto md:px-[40px] md:py-[40px] md:gap-[60px]">
+      <div className="hidden md:grid md:grid-cols-[55%_1fr] md:min-h-full md:px-[40px] md:py-[40px] md:gap-[40px]">
         {/* Left: image */}
         <div className="md:sticky md:top-[40px] md:self-start">
           <span className="block mb-[16px] font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#9A9298]">

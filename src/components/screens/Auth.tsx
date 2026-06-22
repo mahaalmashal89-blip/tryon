@@ -121,7 +121,7 @@ export function AuthScreen() {
   }
 
   return (
-    <section className="min-h-full flex flex-col px-[22px] pt-[22px] pb-[calc(24px+env(safe-area-inset-bottom))] box-border animate-fade md:max-w-[560px] md:mx-auto md:w-full md:px-0 md:pt-[40px]">
+    <section className="min-h-full flex flex-col px-[22px] pt-[22px] pb-[calc(24px+env(safe-area-inset-bottom))] box-border animate-fade md:max-w-[560px] md:mx-auto md:w-full md:px-[40px] md:pt-[40px]">
       <button
         onClick={() => router.push("/landing")}
         className="self-start w-[34px] h-[34px] rounded-full border border-[rgba(20,16,22,0.12)] bg-white cursor-pointer text-[15px] text-[#141016] flex items-center justify-center"
