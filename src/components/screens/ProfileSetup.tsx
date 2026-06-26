@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { validateHeight, validateWeight, validateMeasurementCm } from "@/lib/validation";
 import { saveProfile, loadProfile } from "@/lib/profileStore";
+import { createClient } from "@/lib/supabase/client";
 
 type MeasureValues = Record<string, string>;
 type MeasureErrors = Record<string, string>;
@@ -37,32 +38,56 @@ export function ProfileSetupScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const ctx    = params.get("ctx") ?? "reg";
-  const gender = params.get("gender") === "male" ? "male" as const : "female" as const;
 
-  const fields       = gender === "male" ? MALE_MEASURE_FIELDS : FEMALE_MEASURE_FIELDS;
-  const numericFields = fields.filter((f) => f.label !== "Usual size");
+  const [gender, setGender]       = useState<"male" | "female">("female");
+  const fields                    = gender === "male" ? MALE_MEASURE_FIELDS : FEMALE_MEASURE_FIELDS;
+  const numericFields             = fields.filter((f) => f.label !== "Usual size");
 
   const [values, setValues]       = useState<MeasureValues>(() =>
-    Object.fromEntries(numericFields.map((f) => [f.label, ""]))
+    Object.fromEntries(
+      FEMALE_MEASURE_FIELDS.filter((f) => f.label !== "Usual size").map((f) => [f.label, ""])
+    )
   );
   const [errors, setErrors]       = useState<MeasureErrors>({});
   const [touched, setTouched]     = useState<Record<string, boolean>>({});
   const [size, setSize]           = useState<ClothingSize | "">("");
   const [sizeError, setSizeError] = useState("");
 
-  // Load saved profile on mount
+  // Resolve gender and load saved measurements on mount.
+  // Gender is read exclusively from trusted Supabase sources — never from
+  // the URL — to prevent a URL-manipulation attack that could cause the
+  // wrong measurement fields to be shown and saved.
   useEffect(() => {
-    loadProfile().then((saved) => {
-      if (!saved) return;
+    loadProfile().then(async (saved) => {
+      let resolvedGender: "male" | "female" = "female";
+
+      if (saved) {
+        resolvedGender = saved.gender;
+      } else {
+        // New user: profile row doesn't exist yet; read gender from auth
+        // metadata that was stored during signUp().
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const meta = user?.user_metadata?.gender;
+        if (meta === "male" || meta === "female") resolvedGender = meta;
+      }
+
+      setGender(resolvedGender);
+
+      const resolvedFields = (
+        resolvedGender === "male" ? MALE_MEASURE_FIELDS : FEMALE_MEASURE_FIELDS
+      ).filter((f) => f.label !== "Usual size");
+
       setValues(
         Object.fromEntries(
-          numericFields.map((f) => {
+          resolvedFields.map((f) => {
             const key = LABEL_TO_KEY[f.label];
-            return [f.label, key ? (saved[key] as string) ?? "" : ""];
+            return [f.label, saved && key ? (saved[key] as string) ?? "" : ""];
           })
         )
       );
-      if (saved.size && CLOTHING_SIZES.includes(saved.size as ClothingSize)) {
+
+      if (saved?.size && CLOTHING_SIZES.includes(saved.size as ClothingSize)) {
         setSize(saved.size as ClothingSize);
       }
     });

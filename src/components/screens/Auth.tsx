@@ -91,7 +91,7 @@ export function AuthScreen() {
         options: { data: { full_name: name, gender } },
       });
       if (error) { setAuthError("Unable to create account. Please check your details and try again."); setLoading(false); return; }
-      router.push(`/profile-setup?gender=${gender ?? "female"}`);
+      router.push("/profile-setup");
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) { setAuthError("Invalid email or password."); setLoading(false); return; }
