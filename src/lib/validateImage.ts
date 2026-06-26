@@ -5,8 +5,6 @@ const ALLOWED_MIME = new Set([
   "image/webp",
 ]);
 
-// 10 MB base64 string length ≈ 7.5 MB raw — covers typical phone photos
-const MAX_BASE64_LEN = 10 * 1024 * 1024;
 
 type Result = { ok: true } | { ok: false };
 
@@ -20,7 +18,6 @@ function validateDataUrl(value: string): Result {
   const match = /^data:(image\/[a-zA-Z]+);base64,/.exec(value);
   if (!match) return { ok: false };
   if (!ALLOWED_MIME.has(match[1].toLowerCase())) return { ok: false };
-  if (value.length > MAX_BASE64_LEN) return { ok: false };
   return { ok: true };
 }
 
