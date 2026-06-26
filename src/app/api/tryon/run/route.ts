@@ -1,8 +1,15 @@
 import { NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 const FASHN_API = "https://api.fashn.ai/v1";
 
 export async function POST(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const key = process.env.FASHN_API_KEY;
   if (!key) {
     return Response.json({ error: "FASHN_API_KEY is not configured on the server." }, { status: 500 });
@@ -36,6 +43,14 @@ export async function POST(req: NextRequest) {
   if (!fashnRes.ok) {
     const msg = data.message ?? data.error ?? `FASHN API error (${fashnRes.status})`;
     return Response.json({ error: msg }, { status: fashnRes.status });
+  }
+
+  const { error: dbError } = await supabase
+    .from("tryon_predictions")
+    .insert({ prediction_id: data.id, user_id: user.id });
+
+  if (dbError) {
+    return Response.json({ error: "Failed to record prediction." }, { status: 500 });
   }
 
   return Response.json(data);

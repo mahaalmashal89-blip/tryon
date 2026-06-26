@@ -80,6 +80,20 @@ export interface Database {
         };
         Relationships: [];
       };
+      tryon_predictions: {
+        Row: {
+          id: string;
+          prediction_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          prediction_id: string;
+          user_id: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       tryon_sessions: {
         Row: {
           id: string;
