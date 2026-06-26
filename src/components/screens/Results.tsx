@@ -6,16 +6,49 @@ import { ResultsVariant, STYLING_TIPS } from "@/lib/types";
 import { MiniTab } from "@/components/ui/TabBar";
 import { ScoreCircle } from "@/components/ui/ScoreCircle";
 import { tryonSession } from "@/lib/tryonSession";
+import { saveTryonSession } from "@/lib/tryonStore";
 
 const SCORE = 87;
 
 export function ResultsScreen() {
   const router = useRouter();
-  const [variant, setVariant] = useState<ResultsVariant>("a");
-  const [mounted, setMounted] = useState(false);
+  const [variant, setVariant]     = useState<ResultsVariant>("a");
+  const [mounted, setMounted]     = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [saved, setSaved]         = useState(false);
+  const [saving, setSaving]       = useState(false);
   const resultUrl = mounted ? tryonSession.getResult() : null;
 
   useEffect(() => { setMounted(true); }, []);
+
+  async function handleDownload() {
+    if (!resultUrl || downloading) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/tryon/download?url=${encodeURIComponent(resultUrl)}`);
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = "tryon-result.jpg";
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function handleSaveLater() {
+    if (!resultUrl || saved || saving) return;
+    setSaving(true);
+    try {
+      await saveTryonSession(tryonSession.getGarments(), resultUrl);
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const imagePanel = (
     <div className="relative rounded-[20px] overflow-hidden border border-[rgba(20,16,22,0.08)] bg-white h-[380px] md:h-full md:min-h-[560px]">
@@ -133,25 +166,46 @@ export function ResultsScreen() {
       </div>
 
       {/* Actions */}
-      <div className="mt-[16px] pb-[calc(22px+env(safe-area-inset-bottom))] md:pb-[22px] flex gap-[10px] items-center">
-        <button
-          onClick={() => router.push("/wardrobe")}
-          className="flex-1 py-[16px] border-none rounded-full font-[family-name:var(--font-grotesk)] font-semibold text-[14px] text-[#141016] cursor-pointer"
-          style={{ background: "var(--lav)" }}
-        >
-          Save to wardrobe
-        </button>
-        <button
-          onClick={() => router.push("/tryon/upload")}
-          className="py-[16px] px-[18px] border border-[rgba(20,16,22,0.14)] rounded-full bg-white font-[family-name:var(--font-grotesk)] font-medium text-[14px] text-[#141016] cursor-pointer whitespace-nowrap"
-        >
-          Try another
-        </button>
-        <MiniTab
-          labels={["A", "B"]}
-          active={variant.toUpperCase()}
-          onChange={(v) => setVariant(v.toLowerCase() as ResultsVariant)}
-        />
+      <div className="mt-[16px] pb-[calc(22px+env(safe-area-inset-bottom))] md:pb-[22px] flex flex-col gap-[10px]">
+        {/* Primary: Download + Save for later */}
+        <div className="flex gap-[10px]">
+          <button
+            onClick={handleDownload}
+            disabled={!resultUrl || downloading}
+            className="flex-1 py-[16px] border-none rounded-full font-[family-name:var(--font-grotesk)] font-semibold text-[14px] text-[#141016] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: "var(--lav)" }}
+          >
+            {downloading ? "Downloading…" : "↓ Download"}
+          </button>
+          <button
+            onClick={handleSaveLater}
+            disabled={!resultUrl || saved || saving}
+            className="flex-1 py-[16px] border border-[rgba(20,16,22,0.14)] rounded-full bg-white font-[family-name:var(--font-grotesk)] font-medium text-[14px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            style={{ color: saved ? "#6B6470" : "#141016" }}
+          >
+            {saving ? "Saving…" : saved ? "✓ Saved 30 days" : "Save for 30 days"}
+          </button>
+        </div>
+
+        {/* Secondary: Try another + A/B switcher */}
+        <div className="flex gap-[10px] items-center">
+          <button
+            onClick={() => router.push("/tryon/upload")}
+            className="flex-1 py-[14px] border border-[rgba(20,16,22,0.14)] rounded-full bg-white font-[family-name:var(--font-grotesk)] font-medium text-[14px] text-[#141016] cursor-pointer"
+          >
+            Try another
+          </button>
+          <MiniTab
+            labels={["A", "B"]}
+            active={variant.toUpperCase()}
+            onChange={(v) => setVariant(v.toLowerCase() as ResultsVariant)}
+          />
+        </div>
+
+        {/* Privacy note */}
+        <p className="m-0 text-center font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#B6ADA8]">
+          Your photo is never stored · Zero Data Retention
+        </p>
       </div>
     </>
   );

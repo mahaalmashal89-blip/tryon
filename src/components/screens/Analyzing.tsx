@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { ANALYZE_STEPS } from "@/lib/types";
 import { tryonSession } from "@/lib/tryonSession";
 import { getFashnCategory, sortByLayer, fileToDataUrl, sleep } from "@/lib/fashn";
-import { saveTryonSession } from "@/lib/tryonStore";
 
 const MAX_POLL_ATTEMPTS = 90; // 3 minutes at 2-second intervals
 
@@ -107,10 +106,10 @@ export function AnalyzingScreen() {
         currentModel = resultUrl;
       }
 
-      // Step 3 — done; persist history to Supabase (no user photo — zero data retention)
+      // Step 3 — done. Result URL is held in session only; the user chooses
+      // on the Results screen whether to download or save for 30 days.
       setStep(3);
       tryonSession.setResult(currentModel);
-      await saveTryonSession(sorted, currentModel);
 
       // Release all image data from memory now that processing is complete.
       // This revokes blob URLs and nullifies File references so they can be GC'd.

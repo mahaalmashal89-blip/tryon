@@ -101,15 +101,18 @@ export interface Database {
           garments: Json;
           result_image_url: string | null;
           created_at: string;
+          expires_at: string;
         };
         Insert: {
           user_id: string;
           garments?: Json;
           result_image_url?: string | null;
+          expires_at?: string;
         };
         Update: {
           garments?: Json;
           result_image_url?: string | null;
+          expires_at?: string;
         };
         Relationships: [];
       };

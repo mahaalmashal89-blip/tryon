@@ -15,6 +15,8 @@ export interface StoredGarment {
   url: string; // product URL when source='url', empty string for uploaded files
 }
 
+const SAVE_TTL_DAYS = 30;
+
 export async function saveTryonSession(
   garments: GarmentDraft[],
   resultImageUrl: string
@@ -29,10 +31,14 @@ export async function saveTryonSession(
     url: g.source === "url" ? g.url : "", // never store uploaded file data
   }));
 
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + SAVE_TTL_DAYS);
+
   await supabase.from("tryon_sessions").insert({
     user_id: user.id,
     garments: storedGarments as unknown as import("@/lib/types/database").Json,
     result_image_url: resultImageUrl,
+    expires_at: expiresAt.toISOString(),
   });
 }
 
@@ -45,6 +51,7 @@ export async function loadTryonHistory(): Promise<SavedTryonSession[]> {
     .from("tryon_sessions")
     .select("id, garments, result_image_url, created_at")
     .eq("user_id", user.id)
+    .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(50);
 
