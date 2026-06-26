@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 const FASHN_API = "https://api.fashn.ai/v1";
+const VALID_CATEGORIES = new Set(["tops", "bottoms", "one-pieces", "auto"]);
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -38,6 +39,10 @@ export async function POST(req: NextRequest) {
 
   if (!model_image || !garment_image || !category) {
     return Response.json({ error: "model_image, garment_image, and category are required." }, { status: 400 });
+  }
+
+  if (!VALID_CATEGORIES.has(category)) {
+    return Response.json({ error: "Invalid request." }, { status: 400 });
   }
 
   const fashnRes = await fetch(`${FASHN_API}/run`, {
