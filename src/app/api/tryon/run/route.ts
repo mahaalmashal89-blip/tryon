@@ -10,6 +10,24 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Rate limit: 10 try-ons per 10 minutes per user (testing phase)
+  // To adjust per subscription tier, pass different p_max_requests here.
+  const { data: rl } = await supabase.rpc("check_and_increment_tryon_rate_limit", {
+    p_user_id: user.id,
+    p_max_requests: 10,
+    p_window_minutes: 10,
+  });
+  const limit = rl?.[0];
+  if (!limit?.allowed) {
+    const retryAfter = limit?.resets_at
+      ? Math.ceil((new Date(limit.resets_at).getTime() - Date.now()) / 1000)
+      : 600;
+    return Response.json(
+      { error: "Rate limit exceeded. Please wait before trying again." },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    );
+  }
+
   const key = process.env.FASHN_API_KEY;
   if (!key) {
     return Response.json({ error: "FASHN_API_KEY is not configured on the server." }, { status: 500 });

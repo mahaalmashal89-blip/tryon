@@ -115,7 +115,20 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      check_and_increment_tryon_rate_limit: {
+        Args: {
+          p_user_id: string;
+          p_max_requests?: number;
+          p_window_minutes?: number;
+        };
+        Returns: Array<{
+          allowed: boolean;
+          current_count: number;
+          resets_at: string;
+        }>;
+      };
+    };
     Enums: Record<string, never>;
   };
 }
