@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { validateImageInput } from "@/lib/validateImage";
 
 const FASHN_API = "https://api.fashn.ai/v1";
 const VALID_CATEGORIES = new Set(["tops", "bottoms", "one-pieces", "auto"]);
@@ -42,6 +43,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (!VALID_CATEGORIES.has(category)) {
+    return Response.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  if (!validateImageInput(model_image).ok || !validateImageInput(garment_image).ok) {
     return Response.json({ error: "Invalid request." }, { status: 400 });
   }
 
