@@ -111,11 +111,18 @@ export function AnalyzingScreen() {
       setStep(3);
       tryonSession.setResult(currentModel);
       await saveTryonSession(sorted, currentModel);
+
+      // Release all image data from memory now that processing is complete.
+      // This revokes blob URLs and nullifies File references so they can be GC'd.
+      tryonSession.clearImageData();
+
       await sleep(500);
       router.push("/tryon/results");
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      // Clear image data on failure too — never retain photos after processing ends.
+      tryonSession.clearImageData();
       setError(msg);
       tryonSession.setError(msg);
     }

@@ -77,4 +77,26 @@ export const tryonSession = {
 
   setError(err: string) { s.error = err; },
   getError: () => s.error,
+
+  /**
+   * Immediately release all image data from memory after the try-on completes
+   * or fails. Revokes object URLs (frees browser memory), nullifies File
+   * references (allows GC), and clears garment blob previews.
+   * Call this on both the success path and the catch path in Analyzing.
+   */
+  clearImageData() {
+    if (s.userPhotoPreviewUrl) {
+      URL.revokeObjectURL(s.userPhotoPreviewUrl);
+      s.userPhotoPreviewUrl = "";
+    }
+    s.userPhotoFile = null;
+
+    for (const g of s.garments) {
+      if (g.previewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(g.previewUrl);
+        g.previewUrl = "";
+      }
+      g.file = null;
+    }
+  },
 };
