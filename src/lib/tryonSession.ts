@@ -1,7 +1,10 @@
 /**
  * Module-level in-session state for the Upload → Outfit → Analyzing → Results flow.
  * Persists across Next.js client-side navigation. Lost on hard refresh (acceptable for this flow).
- * The final result URL is also written to localStorage for the Results screen to recover on refresh.
+ *
+ * Result URLs are stored in sessionStorage (cleared when the tab closes) with a
+ * 30-minute TTL so they never linger indefinitely. No user photos or image data
+ * are ever written to storage.
  */
 
 import type { ClothingType } from "@/lib/types";
@@ -24,6 +27,12 @@ interface Session {
 }
 
 const RESULT_KEY = "tryon_last_result";
+const RESULT_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+interface StoredResult {
+  url: string;
+  expiresAt: number;
+}
 
 const s: Session = {
   userPhotoFile: null,
@@ -47,11 +56,23 @@ export const tryonSession = {
 
   setResult(url: string) {
     s.resultImageUrl = url;
-    try { localStorage.setItem(RESULT_KEY, url); } catch { /* quota */ }
+    try {
+      const entry: StoredResult = { url, expiresAt: Date.now() + RESULT_TTL_MS };
+      sessionStorage.setItem(RESULT_KEY, JSON.stringify(entry));
+    } catch { /* quota or SSR */ }
   },
   getResult() {
     if (s.resultImageUrl) return s.resultImageUrl;
-    try { return localStorage.getItem(RESULT_KEY) ?? ""; } catch { return ""; }
+    try {
+      const raw = sessionStorage.getItem(RESULT_KEY);
+      if (!raw) return "";
+      const entry: StoredResult = JSON.parse(raw);
+      if (Date.now() > entry.expiresAt) {
+        sessionStorage.removeItem(RESULT_KEY);
+        return "";
+      }
+      return entry.url;
+    } catch { return ""; }
   },
 
   setError(err: string) { s.error = err; },
