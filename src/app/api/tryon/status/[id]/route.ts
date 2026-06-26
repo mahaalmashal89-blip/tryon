@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { logSecurityEvent, newRequestId } from "@/lib/securityLogger";
 
 const FASHN_API = "https://api.fashn.ai/v1";
 
@@ -7,9 +8,13 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = newRequestId();
+  const route = "GET /api/tryon/status";
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
+    logSecurityEvent({ ts: new Date().toISOString(), requestId, event: "AUTH_FAILURE", route, userId: null });
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -28,6 +33,7 @@ export async function GET(
     .single();
 
   if (!prediction) {
+    logSecurityEvent({ ts: new Date().toISOString(), requestId, event: "UNAUTHORIZED_POLL", route, userId: user.id });
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
