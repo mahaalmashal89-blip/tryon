@@ -77,8 +77,9 @@ export async function POST(req: NextRequest) {
   const data = await fashnRes.json();
 
   if (!fashnRes.ok) {
-    const msg = data.message ?? data.error ?? `FASHN API error (${fashnRes.status})`;
-    return Response.json({ error: msg }, { status: fashnRes.status });
+    const detail = data.message ?? data.error ?? `status=${fashnRes.status}`;
+    logSecurityEvent({ ts: new Date().toISOString(), requestId, event: "FASHN_API_ERROR", route, userId: user.id, detail: String(detail).slice(0, 200) });
+    return Response.json({ error: "Try-on generation failed. Please try again." }, { status: 502 });
   }
 
   const { error: dbError } = await supabase
