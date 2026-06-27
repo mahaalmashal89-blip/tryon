@@ -91,12 +91,14 @@ export async function POST(req: NextRequest) {
   // Build the FASHN request based on which model to use.
   const fashnInputs = useMax
     ? {
-        // tryon-max: uses product_image. No generation_mode or seed — let
-        // FASHN use its own defaults, matching the "good period" (95cbec4–d873473)
-        // when garment fidelity was highest. Quality mode and random seeds were
-        // added later and appear to increase creative drift from the source garment.
+        // tryon-max: uses product_image.
+        // generation_mode is required by the API — cannot be omitted.
+        // "performance" uses fewer inference steps than "quality", which reduces
+        // creative drift and produces output closer to the reference garment.
+        // No seed — let FASHN use its calibrated default (matches "good period").
         model_image,
         product_image: garment_image,
+        generation_mode: "performance",
         ...(prompt ? { prompt } : {}),
       }
     : {
