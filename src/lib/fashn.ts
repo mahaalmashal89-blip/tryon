@@ -1,6 +1,6 @@
 import type { ClothingType } from "@/lib/types";
 
-export type FashnCategory = "tops" | "bottoms" | "one-pieces";
+export type FashnCategory = "tops" | "bottoms" | "one-pieces" | "auto";
 
 const CATEGORY_MAP: Record<string, FashnCategory> = {
   "Jacket":      "tops",

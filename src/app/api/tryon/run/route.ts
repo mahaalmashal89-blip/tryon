@@ -4,6 +4,7 @@ import { validateImageInput } from "@/lib/validateImage";
 import { logSecurityEvent, newRequestId } from "@/lib/securityLogger";
 
 const FASHN_API = "https://api.fashn.ai/v1";
+const FASHN_MODEL = "tryon-v1.6";
 const VALID_CATEGORIES = new Set(["tops", "bottoms", "one-pieces", "auto"]);
 
 // Server-side hard cap: 10 MB binary ≈ 13.4 MB base64. Applies to data URLs only;
@@ -78,11 +79,16 @@ export async function POST(req: NextRequest) {
       "Authorization": `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model_name: "tryon-max",
+      model_name: FASHN_MODEL,
       inputs: {
         model_image,
-        product_image: garment_image,
-        category,               // tell FASHN the exact garment type — prevents auto-detection splitting a dress into top+bottom
+        garment_image,
+        category,
+        // conservative blocks underwear/swimwear and is the safest default
+        // for culturally sensitive contexts (preserves headscarves/hijabs).
+        moderation_level: "conservative",
+        // Direct fit without segmentation — better body shape + skin preservation.
+        segmentation_free: true,
       },
     }),
   });
