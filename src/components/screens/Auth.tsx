@@ -9,6 +9,7 @@ import { Pill } from "@/components/ui/Chip";
 import {
   validateEmail,
   validatePassword,
+  validateLoginPassword,
   validateConfirmPassword,
   validateName,
 } from "@/lib/validation";
@@ -53,7 +54,7 @@ export function AuthScreen() {
     }
     const emailErr = validateEmail(email);
     if (emailErr) e.email = emailErr;
-    const pwErr = validatePassword(password);
+    const pwErr = isRegister ? validatePassword(password) : validateLoginPassword(password);
     if (pwErr) e.password = pwErr;
     if (isRegister) {
       const cfErr = validateConfirmPassword(confirm, password);
@@ -95,7 +96,8 @@ export function AuthScreen() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) { setAuthError("Invalid email or password."); setLoading(false); return; }
-      router.push("/home");
+      // Full navigation so the server-side proxy reads the fresh session cookie.
+      window.location.href = "/home";
     }
   }
 
@@ -155,7 +157,7 @@ export function AuthScreen() {
         {isRegister && (
           <Input
             label="Full name"
-            placeholder="Mara Vance"
+            placeholder="Maha Alm"
             value={name}
             error={touched.name ? errors.name : undefined}
             onChange={(e) => handleChange("name", e.target.value, setName)}

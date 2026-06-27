@@ -17,6 +17,13 @@ export function validatePassword(value: string): string {
   return "";
 }
 
+// For login: only check that the field is non-empty.
+// Existing accounts may have passwords shorter than the current minimum.
+export function validateLoginPassword(value: string): string {
+  if (!value) return "Password is required.";
+  return "";
+}
+
 export function validateConfirmPassword(value: string, password: string): string {
   if (!value) return "Please confirm your password.";
   if (value !== password) return "Passwords do not match.";
