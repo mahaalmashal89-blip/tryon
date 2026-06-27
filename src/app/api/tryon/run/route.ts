@@ -91,13 +91,12 @@ export async function POST(req: NextRequest) {
   // Build the FASHN request based on which model to use.
   const fashnInputs = useMax
     ? {
-        // tryon-max: uses product_image. Category is NOT forwarded — tryon-max
-        // does not accept that field and returns a 4xx if it is present.
-        // The category in the plan is kept for tracing/logging only.
+        // tryon-max: uses product_image. No generation_mode or seed — let
+        // FASHN use its own defaults, matching the "good period" (95cbec4–d873473)
+        // when garment fidelity was highest. Quality mode and random seeds were
+        // added later and appear to increase creative drift from the source garment.
         model_image,
         product_image: garment_image,
-        generation_mode: "quality",
-        seed: Math.floor(Math.random() * 2 ** 32),
         ...(prompt ? { prompt } : {}),
       }
     : {
