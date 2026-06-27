@@ -91,16 +91,14 @@ export async function POST(req: NextRequest) {
   // Build the FASHN request based on which model to use.
   const fashnInputs = useMax
     ? {
-        // tryon-max: uses product_image. Category is optional — sent when the
-        // plan provides it (Cases 1–4) so FASHN knows which body region to target.
-        // No category is sent for Case 5b (jacket+prompt) where the prompt
-        // provides the placement instruction instead.
+        // tryon-max: uses product_image. Category is NOT forwarded — tryon-max
+        // does not accept that field and returns a 4xx if it is present.
+        // The category in the plan is kept for tracing/logging only.
         model_image,
         product_image: garment_image,
         generation_mode: "quality",
         seed: Math.floor(Math.random() * 2 ** 32),
-        ...(category ? { category } : {}),
-        ...(prompt   ? { prompt }   : {}),
+        ...(prompt ? { prompt } : {}),
       }
     : {
         // tryon-v1.6: category-based single-garment replacement.
