@@ -112,6 +112,25 @@ export async function POST(req: NextRequest) {
         segmentation_free: true,
       };
 
+  const modelName = useMax ? FASHN_MODEL_MAX : FASHN_MODEL_V16;
+
+  // Server-side execution trace — visible in `next dev` terminal and Vercel
+  // function logs. Never logs image data.
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(),
+    requestId,
+    event: "FASHN_RUN_SUBMIT",
+    model: modelName,
+    // v1.6: shows which body region is targeted
+    category: useMax ? null : category,
+    // max: confirms preservation prompt was attached
+    hasPrompt: useMax ? Boolean(prompt) : null,
+    // which image type is feeding this step (data URL = from user upload or
+    // previous FASHN result; cdn.fashn.ai = a prior step's output URL)
+    modelImageSource: model_image.startsWith("data:") ? "data-url" : new URL(model_image).hostname,
+    garmentImageSource: garment_image.startsWith("data:") ? "data-url" : new URL(garment_image).hostname,
+  }));
+
   const fashnRes = await fetch(`${FASHN_API}/run`, {
     method: "POST",
     headers: {
@@ -119,7 +138,7 @@ export async function POST(req: NextRequest) {
       "Authorization": `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model_name: useMax ? FASHN_MODEL_MAX : FASHN_MODEL_V16,
+      model_name: modelName,
       inputs: fashnInputs,
     }),
   });
@@ -132,6 +151,14 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Try-on generation failed. Please try again." }, { status: 502 });
   }
 
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(),
+    requestId,
+    event: "FASHN_RUN_ACCEPTED",
+    model: modelName,
+    predictionId: data.id,
+  }));
+
   const { error: dbError } = await supabase
     .from("tryon_predictions")
     .insert({ prediction_id: data.id, user_id: user.id });
@@ -140,5 +167,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Failed to record prediction." }, { status: 500 });
   }
 
-  return Response.json(data);
+  // Echo the trace metadata back so the client can correlate it in DevTools.
+  return Response.json({ ...data, _trace: { model: modelName, category: useMax ? null : category } });
 }

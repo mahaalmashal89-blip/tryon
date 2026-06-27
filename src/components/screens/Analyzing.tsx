@@ -43,6 +43,14 @@ export function AnalyzingScreen() {
       // Normalize selection into physical dressing order and decide, per
       // garment, which FASHN model applies it (see buildTryonPlan).
       const plan = buildTryonPlan(garments);
+
+      // Client-side execution trace — open DevTools → Console to follow along.
+      console.group("[TRYON] Execution plan");
+      plan.forEach((step, i) => {
+        console.log(`  step ${i + 1}/${plan.length}: ${step.garment.type} → ${step.useMax ? "tryon-max (preservation prompt)" : `tryon-v1.6 category=${step.category}`}`);
+      });
+      console.groupEnd();
+
       let currentModel = userPhotoDataUrl;
 
       for (let gi = 0; gi < plan.length; gi++) {
@@ -58,6 +66,15 @@ export function AnalyzingScreen() {
         } else {
           throw new Error(`Garment "${garment.type}" has no image or URL. Please add one.`);
         }
+
+        // Trace: log which image is feeding this step.
+        // "data-url" = user photo or a prior result that came back as base64.
+        // A cdn.fashn.ai URL = a prior step's output that arrived as a CDN link.
+        const modelImageSource = currentModel.startsWith("data:") ? "data-url" : currentModel.slice(0, 60) + "…";
+        console.group(`[TRYON] Step ${gi + 1}/${plan.length}: ${garment.type}`);
+        console.log("  model:       ", useMax ? "tryon-max" : "tryon-v1.6");
+        console.log("  category:    ", useMax ? "(none — using prompt)" : category);
+        console.log("  model_image: ", modelImageSource);
 
         const requestBody: Record<string, unknown> = {
           model_image:   currentModel,
@@ -80,11 +97,17 @@ export function AnalyzingScreen() {
 
         const runData = await runRes.json();
         if (!runRes.ok) {
+          console.error("  FASHN run rejected:", runData);
+          console.groupEnd();
           throw new Error(runData.error ?? `FASHN API error (${runRes.status})`);
         }
 
+        // _trace is echoed back by the server so we can confirm what it sent.
+        console.log("  server trace:", runData._trace);
+
         const predictionId: string = runData.id;
         if (!predictionId) throw new Error("FASHN API did not return a prediction ID.");
+        console.log("  predictionId:", predictionId);
 
         // Poll for result
         let attempts = 0;
@@ -112,6 +135,13 @@ export function AnalyzingScreen() {
         }
 
         if (!resultUrl) throw new Error("Try-on timed out. Please try again.");
+
+        console.log("  result URL:  ", resultUrl);
+        console.groupEnd();
+
+        // This URL becomes the model_image for the next step.
+        // The trace above on the next iteration will show it arriving as a
+        // cdn.fashn.ai URL, confirming the chain is correct.
         currentModel = resultUrl;
       }
 
