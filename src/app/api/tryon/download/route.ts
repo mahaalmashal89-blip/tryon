@@ -28,12 +28,13 @@ export async function GET(req: NextRequest) {
   }
 
   const contentType = imageRes.headers.get("content-type") ?? "image/jpeg";
+  const ext = contentType.includes("png") ? "png" : "jpg";
   const buffer = await imageRes.arrayBuffer();
 
   return new Response(buffer, {
     headers: {
       "Content-Type": contentType,
-      "Content-Disposition": 'attachment; filename="tryon-result.jpg"',
+      "Content-Disposition": `attachment; filename="tryon-result.${ext}"`,
       "Cache-Control": "no-store",
     },
   });
