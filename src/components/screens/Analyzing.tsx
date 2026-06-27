@@ -67,14 +67,29 @@ export function AnalyzingScreen() {
           throw new Error(`Garment "${garment.type}" has no image or URL. Please add one.`);
         }
 
-        // Trace: log which image is feeding this step.
-        // "data-url" = user photo or a prior result that came back as base64.
-        // A cdn.fashn.ai URL = a prior step's output that arrived as a CDN link.
-        const modelImageSource = currentModel.startsWith("data:") ? "data-url" : currentModel.slice(0, 60) + "…";
+        // ── Execution trace ────────────────────────────────────────────────
+        // Garment image: log source type and size so we can verify the right
+        // product image is being sent. Never logs the raw base64 data.
+        const garmentIsDataUrl = garmentImage.startsWith("data:");
+        const garmentImageDesc = garmentIsDataUrl
+          ? `data-url (${(garmentImage.length / 1024).toFixed(0)} KB base64, mime=${garmentImage.slice(5, garmentImage.indexOf(";"))})`
+          : garmentImage;
+
+        // Model image: shows whether step N is receiving step N-1's CDN URL
+        // (chain working) or still the original user photo (chain broken).
+        const modelImageDesc = currentModel.startsWith("data:")
+          ? "data-url (user photo)"
+          : currentModel;
+
         console.group(`[TRYON] Step ${gi + 1}/${plan.length}: ${garment.type}`);
-        console.log("  model:       ", useMax ? "tryon-max" : "tryon-v1.6");
-        console.log("  category:    ", useMax ? "(none — using prompt)" : category);
-        console.log("  model_image: ", modelImageSource);
+        console.log("  garment type:    ", garment.type);
+        console.log("  garment source:  ", garment.source === "image" ? "uploaded file" : `URL: ${garment.url}`);
+        console.log("  garment image →  ", garmentImageDesc);
+        console.log("  model:           ", useMax ? "tryon-max" : "tryon-v1.6");
+        console.log("  category:        ", useMax ? "(none — using prompt)" : category);
+        console.log("  model_image ←    ", modelImageDesc);
+        console.log("  ── open to inspect step input ──────────────────────────────────");
+        if (!currentModel.startsWith("data:")) console.log("  %cView model_image (step input)", "color:blue;text-decoration:underline", currentModel);
 
         const requestBody: Record<string, unknown> = {
           model_image:   currentModel,
@@ -136,7 +151,8 @@ export function AnalyzingScreen() {
 
         if (!resultUrl) throw new Error("Try-on timed out. Please try again.");
 
-        console.log("  result URL:  ", resultUrl);
+        console.log("  ── step result (open to inspect before next step) ──────────────");
+        console.log("  %cView step result", "color:blue;text-decoration:underline", resultUrl);
         console.groupEnd();
 
         // This URL becomes the model_image for the next step.
