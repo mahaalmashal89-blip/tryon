@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PrivacyModal } from "@/components/layout/PrivacyModal";
 import { tryonSession } from "@/lib/tryonSession";
+import { compressImage, ImageTooLargeError } from "@/lib/compressImage";
 
 export function TryOnUploadScreen() {
   const router = useRouter();
@@ -11,27 +12,45 @@ export function TryOnUploadScreen() {
   const [agreed,      setAgreed]      = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [previewUrl,  setPreviewUrl]  = useState(tryonSession.getUserPhotoPreviewUrl());
+  const [uploadError, setUploadError] = useState("");
+  const [compressing, setCompressing] = useState(false);
 
   const ink  = "#141016";
   const lav  = "var(--lav)";
   const lime = "var(--lime)";
   const line = "rgba(20,16,22,0.12)";
 
-  function handleFile(file: File | null) {
+  async function handleFile(file: File | null) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) return;
-    tryonSession.setUserPhoto(file);
-    setPreviewUrl(tryonSession.getUserPhotoPreviewUrl());
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Please upload an image file (JPG, PNG, etc.).");
+      return;
+    }
+    setUploadError("");
+    setCompressing(true);
+    try {
+      const compressed = await compressImage(file);
+      tryonSession.setUserPhoto(compressed);
+      setPreviewUrl(tryonSession.getUserPhotoPreviewUrl());
+    } catch (err) {
+      setUploadError(
+        err instanceof ImageTooLargeError
+          ? err.message
+          : "Could not process image. Please try another photo."
+      );
+    } finally {
+      setCompressing(false);
+    }
   }
 
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    handleFile(e.target.files?.[0] ?? null);
+  async function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    await handleFile(e.target.files?.[0] ?? null);
     e.target.value = "";
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
-    handleFile(e.dataTransfer.files?.[0] ?? null);
+    void handleFile(e.dataTransfer.files?.[0] ?? null);
   }
 
   function handleContinue() {
@@ -78,16 +97,24 @@ export function TryOnUploadScreen() {
 
         {/* Upload zone — flex-1 so it fills all space between header and bottom cards */}
         <button
-          onClick={() => fileRef.current?.click()}
+          onClick={() => !compressing && fileRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
-          className="mt-[14px] flex-1 min-h-[260px] border-[1.5px] border-dashed rounded-[18px] cursor-pointer flex flex-col items-center justify-center gap-[10px] overflow-hidden relative"
+          disabled={compressing}
+          className="mt-[14px] flex-1 min-h-[260px] border-[1.5px] border-dashed rounded-[18px] cursor-pointer flex flex-col items-center justify-center gap-[10px] overflow-hidden relative disabled:cursor-wait"
           style={{
-            borderColor: hasPhoto ? "var(--lav)" : "rgba(20,16,22,0.22)",
+            borderColor: uploadError ? "#ef4444" : hasPhoto ? "var(--lav)" : "rgba(20,16,22,0.22)",
             background: hasPhoto ? "transparent" : undefined,
           }}
         >
-          {previewUrl ? (
+          {compressing ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-[10px] bg-white/80">
+              <div className="w-[36px] h-[36px] rounded-full border-[3px] border-[rgba(20,16,22,0.1)] border-t-[#141016] animate-spin" />
+              <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.1em] uppercase text-[#9A9298]">
+                Optimising photo…
+              </span>
+            </div>
+          ) : previewUrl ? (
             <img
               src={previewUrl}
               alt="Your photo"
@@ -102,18 +129,25 @@ export function TryOnUploadScreen() {
                 Tap to upload a full-body photo
               </span>
               <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.06em] text-[#B6ADA8]">
-                JPG / PNG · best results: front-facing, good light
+                JPG / PNG · up to 20 MB · auto-optimised
               </span>
             </div>
           )}
 
           {/* Change photo overlay (shown when photo already selected) */}
-          {hasPhoto && (
+          {hasPhoto && !compressing && (
             <div className="absolute bottom-[10px] left-1/2 -translate-x-1/2 bg-[rgba(20,16,22,0.7)] text-white px-[14px] py-[6px] rounded-full font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase whitespace-nowrap">
               Tap to change photo
             </div>
           )}
         </button>
+
+        {/* Upload error */}
+        {uploadError && (
+          <p className="mt-[8px] font-[family-name:var(--font-grotesk)] text-[13px] text-red-500 text-center leading-snug">
+            {uploadError}
+          </p>
+        )}
 
         {/* Profile nudge */}
         <button

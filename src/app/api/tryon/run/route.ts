@@ -6,6 +6,14 @@ import { logSecurityEvent, newRequestId } from "@/lib/securityLogger";
 const FASHN_API = "https://api.fashn.ai/v1";
 const VALID_CATEGORIES = new Set(["tops", "bottoms", "one-pieces", "auto"]);
 
+// Server-side hard cap: 10 MB binary ≈ 13.4 MB base64. Applies to data URLs only;
+// product URL strings are short and don't need this check.
+const MAX_BASE64_CHARS = Math.ceil(10 * 1024 * 1024 * (4 / 3)) + 100;
+
+function imageExceedsLimit(value: string): boolean {
+  return value.startsWith("data:") && value.length > MAX_BASE64_CHARS;
+}
+
 export async function POST(req: NextRequest) {
   const requestId = newRequestId();
   const route = "POST /api/tryon/run";
@@ -56,6 +64,11 @@ export async function POST(req: NextRequest) {
   if (!validateImageInput(model_image).ok || !validateImageInput(garment_image).ok) {
     logSecurityEvent({ ts: new Date().toISOString(), requestId, event: "INVALID_IMAGE_INPUT", route, userId: user.id });
     return Response.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  if (imageExceedsLimit(model_image) || imageExceedsLimit(garment_image)) {
+    logSecurityEvent({ ts: new Date().toISOString(), requestId, event: "INVALID_IMAGE_INPUT", route, userId: user.id, detail: "image_exceeds_10mb_server_cap" });
+    return Response.json({ error: "Image is too large. Please use a smaller photo." }, { status: 413 });
   }
 
   const fashnRes = await fetch(`${FASHN_API}/run`, {

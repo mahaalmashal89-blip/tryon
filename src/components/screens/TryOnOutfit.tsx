@@ -14,6 +14,7 @@ export function TryOnOutfitScreen() {
     draftType, setDraftType,
     draftUrl, setDraftUrl,
     draftPreview, fileInputRef,
+    fileError, compressing,
     handleFileSelect, addItem, removeItem,
   } = useOutfitStore();
 
@@ -24,6 +25,7 @@ export function TryOnOutfitScreen() {
   const lav = "var(--lav)";
 
   const draftReady =
+    !compressing &&
     draftType !== null &&
     (source === "url" ? draftUrl.trim().length > 0 : draftPreview !== "");
 
@@ -141,17 +143,25 @@ export function TryOnOutfitScreen() {
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => { handleFileSelect(e.target.files?.[0] ?? null); e.target.value = ""; }}
+              onChange={(e) => { void handleFileSelect(e.target.files?.[0] ?? null); e.target.value = ""; }}
             />
             <button
-              onClick={() => ref.current?.click()}
-              className="mt-[12px] w-full rounded-[14px] cursor-pointer overflow-hidden border-[1.5px] border-dashed"
+              onClick={() => !compressing && ref.current?.click()}
+              disabled={compressing}
+              className="mt-[12px] w-full rounded-[14px] cursor-pointer overflow-hidden border-[1.5px] border-dashed disabled:cursor-wait"
               style={{
-                borderColor: draftPreview ? "var(--lav)" : "rgba(20,16,22,0.22)",
-                height: draftPreview ? "auto" : "104px",
+                borderColor: fileError ? "#ef4444" : draftPreview ? "var(--lav)" : "rgba(20,16,22,0.22)",
+                height: draftPreview || compressing ? "auto" : "104px",
               }}
             >
-              {draftPreview ? (
+              {compressing ? (
+                <div className="h-[104px] flex flex-col items-center justify-center gap-[8px]">
+                  <div className="w-[28px] h-[28px] rounded-full border-[3px] border-[rgba(20,16,22,0.1)] border-t-[#141016] animate-spin" />
+                  <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#9A9298]">
+                    Optimising…
+                  </span>
+                </div>
+              ) : draftPreview ? (
                 <div className="relative">
                   <img
                     src={draftPreview}
@@ -174,6 +184,11 @@ export function TryOnOutfitScreen() {
                 </div>
               )}
             </button>
+            {fileError && (
+              <p className="mt-[6px] font-[family-name:var(--font-grotesk)] text-[12px] text-red-500 leading-snug">
+                {fileError}
+              </p>
+            )}
           </>
         )}
 

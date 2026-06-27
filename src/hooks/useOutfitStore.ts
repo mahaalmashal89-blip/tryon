@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { OutfitSource, ClothingType } from "@/lib/types";
 import { tryonSession, type GarmentDraft } from "@/lib/tryonSession";
+import { compressImage, ImageTooLargeError } from "@/lib/compressImage";
 
 export function useOutfitStore() {
   // Initialise from session so state survives back-navigation
@@ -13,15 +14,30 @@ export function useOutfitStore() {
   const [draftUrl,  setDraftUrl]  = useState("");
   const [draftFile, setDraftFile] = useState<File | null>(null);
   const [draftPreview, setDraftPreview] = useState("");
+  const [fileError,    setFileError]    = useState("");
+  const [compressing,  setCompressing]  = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  function handleFileSelect(file: File | null) {
+  async function handleFileSelect(file: File | null) {
     if (!file) return;
     if (draftPreview) URL.revokeObjectURL(draftPreview);
-    const preview = URL.createObjectURL(file);
-    setDraftFile(file);
-    setDraftPreview(preview);
+    setFileError("");
+    setCompressing(true);
+    try {
+      const compressed = await compressImage(file);
+      const preview = URL.createObjectURL(compressed);
+      setDraftFile(compressed);
+      setDraftPreview(preview);
+    } catch (err) {
+      setFileError(
+        err instanceof ImageTooLargeError
+          ? err.message
+          : "Could not process image. Please try another."
+      );
+    } finally {
+      setCompressing(false);
+    }
   }
 
   function syncToSession(next: GarmentDraft[]) {
@@ -70,6 +86,8 @@ export function useOutfitStore() {
     setDraftUrl,
     draftFile,
     draftPreview,
+    fileError,
+    compressing,
     fileInputRef,
     handleFileSelect,
     addItem,
