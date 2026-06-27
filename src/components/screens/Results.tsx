@@ -233,7 +233,7 @@ export function ResultsScreen() {
             onClick={() => router.push("/tryon/upload")}
             className="flex-1 py-[14px] border border-[rgba(20,16,22,0.14)] rounded-full bg-white font-[family-name:var(--font-grotesk)] font-medium text-[14px] text-[#141016] cursor-pointer"
           >
-            Try another
+            Generate again
           </button>
           <MiniTab
             labels={["A", "B"]}

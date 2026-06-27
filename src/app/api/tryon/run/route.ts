@@ -84,6 +84,12 @@ export async function POST(req: NextRequest) {
         model_image,
         garment_image,
         category,
+        // quality mode uses FASHN's highest-fidelity inference path.
+        // Slower than "balanced" but significantly reduces anatomy artifacts
+        // (hand deformation, leg distortion, body proportion changes).
+        mode: "quality",
+        // Random seed so retries produce genuinely different outputs.
+        seed: Math.floor(Math.random() * 2 ** 32),
         // conservative blocks underwear/swimwear and is the safest default
         // for culturally sensitive contexts (preserves headscarves/hijabs).
         moderation_level: "conservative",
