@@ -2,119 +2,148 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildTryonPlan, OUTER_LAYER_PROMPT } from "./fashn.ts";
 
-// Compact view of a plan: one entry per step.
-//   "Skirt:v1.6/bottoms" → tryon-v1.6, category=bottoms
-//   "Jacket:max"         → tryon-max with preservation prompt
+// Compact summary of a plan step:
+//   "Skirt:max/bottoms"    → tryon-max, category=bottoms, no prompt
+//   "Jacket:max/prompt"    → tryon-max, preservation prompt (Case 5b)
+//   "Dress:v1.6/one-pieces"→ tryon-v1.6, category=one-pieces (Case 5a only)
 function summarize(types: string[]): string[] {
-  return buildTryonPlan(types.map((type) => ({ type }))).map((step) =>
-    step.useMax
-      ? `${step.garment.type}:max`
-      : `${step.garment.type}:v1.6/${step.category}`
-  );
+  return buildTryonPlan(types.map((type) => ({ type }))).map((step) => {
+    if (step.useMax && step.prompt) return `${step.garment.type}:max/prompt`;
+    if (step.useMax)                return `${step.garment.type}:max/${step.category}`;
+    return                                 `${step.garment.type}:v1.6/${step.category}`;
+  });
 }
 
-// ── Case 4: separable garments, jacket + bottom ─────────────────────────────
-// Baseline order (commit dfd6c89, restored): bottom first, jacket last. Both
-// v1.6. This is the order that produced the best garment fidelity in real use.
+// ── Case 1: single garments ───────────────────────────────────────────────────
+// All single garments use tryon-max (replicating the "good period" model).
 
-test("Jacket + Skirt → skirt v1.6 first, then jacket v1.6 last (baseline)", () => {
+test("Single Jacket → max/tops", () => {
+  assert.deepEqual(summarize(["Jacket"]), ["Jacket:max/tops"]);
+});
+
+test("Single Top → max/tops", () => {
+  assert.deepEqual(summarize(["Top / Shirt"]), ["Top / Shirt:max/tops"]);
+});
+
+test("Single Skirt → max/bottoms", () => {
+  assert.deepEqual(summarize(["Skirt"]), ["Skirt:max/bottoms"]);
+});
+
+test("Single Pants → max/bottoms", () => {
+  assert.deepEqual(summarize(["Pants"]), ["Pants:max/bottoms"]);
+});
+
+test("Single Dress → max/one-pieces", () => {
+  assert.deepEqual(summarize(["Dress"]), ["Dress:max/one-pieces"]);
+});
+
+test("Single One Piece → max/one-pieces", () => {
+  assert.deepEqual(summarize(["One Piece"]), ["One Piece:max/one-pieces"]);
+});
+
+// ── Case 2: Top + Bottom ─────────────────────────────────────────────────────
+
+test("Top + Skirt → both max", () => {
+  assert.deepEqual(summarize(["Top / Shirt", "Skirt"]), [
+    "Top / Shirt:max/tops",
+    "Skirt:max/bottoms",
+  ]);
+});
+
+test("Top + Pants → both max", () => {
+  assert.deepEqual(summarize(["Top / Shirt", "Pants"]), [
+    "Top / Shirt:max/tops",
+    "Pants:max/bottoms",
+  ]);
+});
+
+// ── Case 3: Top + Jacket ─────────────────────────────────────────────────────
+
+test("Top + Jacket (no bottom) → both max/tops", () => {
+  assert.deepEqual(summarize(["Jacket", "Top / Shirt"]), [
+    "Top / Shirt:max/tops",
+    "Jacket:max/tops",
+  ]);
+});
+
+// ── Case 4: Jacket + separable bottom ────────────────────────────────────────
+// Baseline order (bottom first, jacket last), both tryon-max with category.
+// Replicates the model used during the "good period" (commits 95cbec4→d873473).
+
+test("Jacket + Skirt → skirt max first, jacket max last", () => {
   assert.deepEqual(summarize(["Jacket", "Skirt"]), [
-    "Skirt:v1.6/bottoms",
-    "Jacket:v1.6/tops",
+    "Skirt:max/bottoms",
+    "Jacket:max/tops",
   ]);
 });
 
 test("Skirt + Jacket → identical plan regardless of selection order", () => {
   assert.deepEqual(summarize(["Skirt", "Jacket"]), [
-    "Skirt:v1.6/bottoms",
-    "Jacket:v1.6/tops",
+    "Skirt:max/bottoms",
+    "Jacket:max/tops",
   ]);
 });
 
-test("Jacket + Pants → pants v1.6 first, then jacket v1.6 last (baseline)", () => {
+test("Jacket + Pants → pants max first, jacket max last", () => {
   assert.deepEqual(summarize(["Jacket", "Pants"]), [
-    "Pants:v1.6/bottoms",
-    "Jacket:v1.6/tops",
+    "Pants:max/bottoms",
+    "Jacket:max/tops",
   ]);
 });
 
-test("Top + Skirt + Jacket → top, skirt, then jacket last", () => {
+test("Top + Skirt + Jacket → top max, skirt max, jacket max last", () => {
   assert.deepEqual(summarize(["Jacket", "Skirt", "Top / Shirt"]), [
-    "Top / Shirt:v1.6/tops",
-    "Skirt:v1.6/bottoms",
-    "Jacket:v1.6/tops",
+    "Top / Shirt:max/tops",
+    "Skirt:max/bottoms",
+    "Jacket:max/tops",
   ]);
 });
 
-test("Top + Pants + Jacket → top, pants, then jacket last", () => {
-  assert.deepEqual(summarize(["Pants", "Jacket", "Top / Shirt"]), [
-    "Top / Shirt:v1.6/tops",
-    "Pants:v1.6/bottoms",
-    "Jacket:v1.6/tops",
-  ]);
-});
+// ── Case 5: connected full-body + jacket — UNCHANGED ─────────────────────────
+// Dress/One Piece step: v1.6 (preserves neckline construction).
+// Jacket step: tryon-max + OUTER_LAYER_PROMPT (experimental).
 
-// ── Connected full-body + jacket ─────────────────────────────────────────────
-// Jacket step uses tryon-max because v1.6 category="tops" destroys the
-// neckline / construction of a connected one-piece or dress.
-
-test("Dress + Jacket → dress v1.6 first, jacket via tryon-max last", () => {
+test("Dress + Jacket → dress v1.6 first, jacket max+prompt last (unchanged)", () => {
   assert.deepEqual(summarize(["Jacket", "Dress"]), [
     "Dress:v1.6/one-pieces",
-    "Jacket:max",
+    "Jacket:max/prompt",
   ]);
 });
 
-test("One Piece + Jacket → one-piece v1.6 first, jacket via tryon-max last", () => {
+test("One Piece + Jacket → one-piece v1.6 first, jacket max+prompt last (unchanged)", () => {
   assert.deepEqual(summarize(["Jacket", "One Piece"]), [
     "One Piece:v1.6/one-pieces",
-    "Jacket:max",
+    "Jacket:max/prompt",
   ]);
 });
 
-test("Dress + Pants + Jacket → pants dropped, dress base, jacket via max", () => {
+test("Dress + Pants + Jacket → pants dropped, dress v1.6, jacket max+prompt", () => {
   assert.deepEqual(summarize(["Pants", "Dress", "Jacket"]), [
     "Dress:v1.6/one-pieces",
-    "Jacket:max",
+    "Jacket:max/prompt",
   ]);
-});
-
-// ── Edge cases ───────────────────────────────────────────────────────────────
-
-test("Jacket alone → plain v1.6 tops (no bottom to protect)", () => {
-  assert.deepEqual(summarize(["Jacket"]), ["Jacket:v1.6/tops"]);
-});
-
-test("Top + Jacket (no bottom) → both v1.6/tops", () => {
-  assert.deepEqual(summarize(["Jacket", "Top / Shirt"]), [
-    "Top / Shirt:v1.6/tops",
-    "Jacket:v1.6/tops",
-  ]);
-});
-
-test("Single Skirt → v1.6 bottoms", () => {
-  assert.deepEqual(summarize(["Skirt"]), ["Skirt:v1.6/bottoms"]);
 });
 
 // ── Prompt integrity ─────────────────────────────────────────────────────────
 
-test("Dress + Jacket max step carries the preservation prompt", () => {
+test("Case 5b jacket step carries the preservation prompt", () => {
   const plan = buildTryonPlan([{ type: "Dress" }, { type: "Jacket" }]);
   const jacketStep = plan.find((s) => s.garment.type === "Jacket");
   assert.equal(jacketStep?.useMax, true);
   assert.equal(jacketStep?.prompt, OUTER_LAYER_PROMPT);
 });
 
-test("Jacket + Skirt jacket step is v1.6 (not max) — tryon-max reserved for Case 5 only", () => {
+test("Case 4 jacket step uses tryon-max without prompt", () => {
   const plan = buildTryonPlan([{ type: "Jacket" }, { type: "Skirt" }]);
   const jacketStep = plan.find((s) => s.garment.type === "Jacket");
-  assert.equal(jacketStep?.useMax, false);
-  assert.equal(jacketStep?.category, "tops");
+  assert.equal(jacketStep?.useMax,    true);
+  assert.equal(jacketStep?.prompt,    undefined);
+  assert.equal(jacketStep?.category,  "tops");
 });
 
-test("Jacket + Pants jacket step is v1.6 (not max) — separables never use tryon-max", () => {
-  const plan = buildTryonPlan([{ type: "Jacket" }, { type: "Pants" }]);
-  const jacketStep = plan.find((s) => s.garment.type === "Jacket");
-  assert.equal(jacketStep?.useMax, false);
-  assert.equal(jacketStep?.category, "tops");
+test("Case 5a dress step stays v1.6 even though jacket uses max", () => {
+  const plan = buildTryonPlan([{ type: "Jacket" }, { type: "Dress" }]);
+  const dressStep = plan.find((s) => s.garment.type === "Dress");
+  assert.equal(dressStep?.useMax,   false);
+  assert.equal(dressStep?.category, "one-pieces");
 });

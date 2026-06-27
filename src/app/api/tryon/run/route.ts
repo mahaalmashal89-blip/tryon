@@ -62,14 +62,13 @@ export async function POST(req: NextRequest) {
   // use_max: true → tryon-max (no category). Otherwise tryon-v1.6 requires category.
   const useMax = use_max === true;
 
-  if (!useMax) {
-    if (!category) {
-      return Response.json({ error: "model_image, garment_image, and category are required." }, { status: 400 });
-    }
-    if (!VALID_CATEGORIES.has(category)) {
-      logSecurityEvent({ ts: new Date().toISOString(), requestId, event: "INVALID_CATEGORY", route, userId: user.id });
-      return Response.json({ error: "Invalid request." }, { status: 400 });
-    }
+  // Category is required for v1.6, optional for tryon-max. Validate whenever present.
+  if (!useMax && !category) {
+    return Response.json({ error: "model_image, garment_image, and category are required." }, { status: 400 });
+  }
+  if (category && !VALID_CATEGORIES.has(category)) {
+    logSecurityEvent({ ts: new Date().toISOString(), requestId, event: "INVALID_CATEGORY", route, userId: user.id });
+    return Response.json({ error: "Invalid request." }, { status: 400 });
   }
 
   if (useMax && prompt != null) {
@@ -92,14 +91,16 @@ export async function POST(req: NextRequest) {
   // Build the FASHN request based on which model to use.
   const fashnInputs = useMax
     ? {
-        // tryon-max: no category, uses product_image, supports prompt for styling control.
-        // Used specifically for outerwear (Jacket) when a full-body garment is present,
-        // so we can instruct the model not to redesign the underlying garment.
+        // tryon-max: uses product_image. Category is optional — sent when the
+        // plan provides it (Cases 1–4) so FASHN knows which body region to target.
+        // No category is sent for Case 5b (jacket+prompt) where the prompt
+        // provides the placement instruction instead.
         model_image,
         product_image: garment_image,
         generation_mode: "quality",
         seed: Math.floor(Math.random() * 2 ** 32),
-        ...(prompt ? { prompt } : {}),
+        ...(category ? { category } : {}),
+        ...(prompt   ? { prompt }   : {}),
       }
     : {
         // tryon-v1.6: category-based single-garment replacement.
@@ -122,12 +123,12 @@ export async function POST(req: NextRequest) {
     event: "FASHN_RUN_SUBMIT",
     model: modelName,
     // v1.6: shows which body region is targeted
-    category: useMax ? null : category,
+    category: category ?? null,
     // max: confirms preservation prompt was attached
     hasPrompt: useMax ? Boolean(prompt) : null,
     // which image type is feeding this step (data URL = from user upload or
     // previous FASHN result; cdn.fashn.ai = a prior step's output URL)
-    modelImageSource: model_image.startsWith("data:") ? "data-url" : new URL(model_image).hostname,
+    modelImageSource:   model_image.startsWith("data:")   ? "data-url" : new URL(model_image).hostname,
     garmentImageSource: garment_image.startsWith("data:") ? "data-url" : new URL(garment_image).hostname,
   }));
 

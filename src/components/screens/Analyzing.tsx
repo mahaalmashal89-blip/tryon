@@ -98,7 +98,8 @@ export function AnalyzingScreen() {
 
         if (useMax) {
           requestBody.use_max = true;
-          requestBody.prompt  = prompt;
+          if (category) requestBody.category = category;   // category sent to tryon-max when plan provides it
+          if (prompt)   requestBody.prompt    = prompt;    // only Case 5b jacket step
         } else {
           requestBody.category = category;
         }

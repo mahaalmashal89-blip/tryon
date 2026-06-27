@@ -91,42 +91,57 @@ export const OUTER_LAYER_PROMPT =
 export interface TryonStep<T> {
   garment: T;
   useMax: boolean;            // true → tryon-max, false → tryon-v1.6
-  category?: FashnCategory;   // present only when useMax === false
-  prompt?: string;            // present only when useMax === true
+  category?: FashnCategory;   // always present; sent to both models
+  prompt?: string;            // present only for Case 5 jacket step (tryon-max + prompt)
 }
 
 /**
  * Build the ordered processing plan for an outfit.
  *
- * The user may select garments in any order; this normalizes them and decides,
- * per garment, which FASHN model applies it:
+ * Three rules, applied in order:
  *
- *  - All garments → tryon-v1.6 with the matching category, EXCEPT:
+ * 1. Case 5 — connected full-body step when a jacket is also present:
+ *    Dress / One Piece step → tryon-v1.6 (unchanged, preserves neckline
+ *    before the jacket is layered on top).
  *
- *  - Jacket / Other applied over a Dress / One Piece (connected full-body
- *    garment) → tryon-max + OUTER_LAYER_PROMPT.
+ * 2. Case 5 — jacket step over a connected full-body garment:
+ *    → tryon-max + OUTER_LAYER_PROMPT (experimental, unchanged).
  *
- *    Reason: v1.6 category="tops" replaces the upper body region and destroys
- *    the neckline / construction of a connected one-piece. tryon-max with a
- *    prompt is the only FASHN-native approach for this case.
+ * 3. Everything else — single garments, Top+Bottom, Jacket+Skirt/Pants:
+ *    → tryon-max with category, no prompt.
  *
- *    This does NOT apply to Jacket + Pants/Skirt (separable bottoms). A/B
- *    testing and pipeline traces confirmed that for separable bottoms the
- *    correct fix is ordering (jacket before skirt, both v1.6), not tryon-max.
- *    tryon-max was tested for that case and ignored the preservation prompt.
+ *    Git history shows the entire pipeline ran tryon-max during the period
+ *    (commits 95cbec4→d873473) when garment fidelity was highest. The
+ *    migration to tryon-v1.6 restored category-based targeting but may
+ *    have reduced per-garment fidelity. This hybrid routes non-Case-5
+ *    garments back to tryon-max while keeping Case 5 unchanged.
  */
 export function buildTryonPlan<T extends { type: ClothingType | string }>(
   items: T[]
 ): TryonStep<T>[] {
   const sorted = sortByLayer(items);
   const hasConnectedFullBody = sorted.some((g) => CONNECTED_FULLBODY.has(g.type));
+  const hasOuterwear         = sorted.some((g) => OUTERWEAR.has(g.type));
 
   return sorted.map((garment) => {
     const isOuterwear = OUTERWEAR.has(garment.type);
-    if (isOuterwear && hasConnectedFullBody) {
-      return { garment, useMax: true, prompt: OUTER_LAYER_PROMPT };
+
+    // Case 5a: the Dress/One Piece step when a Jacket is also selected.
+    // Keep v1.6 here — it correctly applies the one-piece before the jacket
+    // is layered on top via tryon-max in the next step.
+    if (!isOuterwear && hasConnectedFullBody && hasOuterwear) {
+      return { garment, useMax: false, category: getFashnCategory(garment.type) };
     }
-    return { garment, useMax: false, category: getFashnCategory(garment.type) };
+
+    // Case 5b: Jacket/Other over a connected full-body garment.
+    // tryon-max + preservation prompt — experimental, unchanged.
+    if (isOuterwear && hasConnectedFullBody) {
+      return { garment, useMax: true, category: getFashnCategory(garment.type), prompt: OUTER_LAYER_PROMPT };
+    }
+
+    // All other cases (Cases 1–4): tryon-max with category, no prompt.
+    // Matches the model used during the "good period" (95cbec4→d873473).
+    return { garment, useMax: true, category: getFashnCategory(garment.type) };
   });
 }
 
