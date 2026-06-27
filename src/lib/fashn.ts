@@ -12,15 +12,38 @@ const CATEGORY_MAP: Record<string, FashnCategory> = {
   "Other":       "tops",
 };
 
-// Lower number = applied first when chaining garments
+// Lower number = applied FIRST when chaining sequential FASHN calls.
+//
+// CRITICAL ORDERING RULE — bottoms must be applied LAST.
+//
+// Each FASHN call regenerates the whole image and bleeds into adjacent
+// regions. A category="tops" call (e.g. a jacket) does NOT stop at a clean
+// waistline — it regenerates the waist zone too, and reconstructs whatever
+// looks natural there. Given the user's original photo, that is the ORIGINAL
+// trousers — so a tops call run AFTER a skirt call silently restores the
+// trousers and destroys the skirt.
+//
+// Empirically verified (jacket + skirt):
+//   skirt first, jacket last  → trousers restored, skirt lost   ❌
+//   jacket first, skirt last  → jacket kept, skirt replaces all ✅
+//
+// Whichever garment is applied last "wins" its region. The original photo's
+// trousers are the thing most likely to be wrongly restored, so the bottom
+// garment must be the final call that touches the lower body.
+//
+//   Upper garments (Top/Shirt → Jacket/Other) FIRST,
+//   then Bottoms (Pants/Skirt) LAST.
+//
+// Full-body base layers (Dress/One Piece) go first of all; when present they
+// replace the base outfit and bottoms are dropped (see sortByLayer).
 const LAYER_ORDER: Record<string, number> = {
-  "Dress":       0,
+  "Dress":       0,  // full-body base — applied first
   "One Piece":   0,
-  "Top / Shirt": 1,
-  "Pants":       2,
-  "Skirt":       2,
-  "Jacket":      3,
-  "Other":       1,
+  "Top / Shirt": 1,  // upper base layer
+  "Jacket":      2,  // outerwear, layered over the top
+  "Other":       2,
+  "Pants":       3,  // bottoms applied LAST so they definitively replace
+  "Skirt":       3,  // the original trousers without being overwritten
 };
 
 export function getFashnCategory(type: string): FashnCategory {
@@ -31,9 +54,13 @@ const OUTERWEAR = new Set(["Jacket", "Other"]);
 const BASE_REPLACEABLE = new Set(["Top / Shirt", "Pants", "Skirt"]);
 
 /**
- * Sort garments into layering order.
+ * Sort garments into the order they must be applied to FASHN.
  *
- * Layer order: Dress/One Piece → Top/Shirt → Pants/Skirt → Jacket/Other
+ * Application order: Dress/One Piece → Top/Shirt → Jacket/Other → Pants/Skirt
+ *
+ * Bottoms are deliberately applied LAST — see LAYER_ORDER for the full
+ * rationale. A tops/jacket call regenerates the waist zone and restores the
+ * original trousers, so any bottom applied before it gets overwritten.
  *
  * If a Dress or One Piece is present it replaces the base outfit layer
  * (Top/Shirt, Pants, Skirt are discarded), but outerwear (Jacket, Other)
