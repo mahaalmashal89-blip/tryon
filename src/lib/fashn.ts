@@ -33,31 +33,18 @@ const BASE_REPLACEABLE = new Set(["Top / Shirt", "Pants", "Skirt"]);
 /**
  * Sort garments into layering order.
  *
- * Standard order: Dress/One Piece → Top/Shirt → Pants/Skirt → Jacket/Other
+ * Layer order: Dress/One Piece → Top/Shirt → Pants/Skirt → Jacket/Other
  *
- * Special case — Jacket/Outerwear + Dress/One Piece:
- * Apply the jacket FIRST on the clean user photo, then the one-piece on top.
- * Rationale: tryon-v1.6 with category="one-pieces" targets the full body and
- * can layer over an already-applied jacket silhouette better than a "tops" call
- * can overlay an already-applied connected garment.
+ * If a Dress or One Piece is present it replaces the base outfit layer
+ * (Top/Shirt, Pants, Skirt are discarded), but outerwear (Jacket, Other)
+ * is still applied on top.
  */
 export function sortByLayer<T extends { type: ClothingType | string }>(items: T[]): T[] {
-  const hasFullBody  = items.some((i) => i.type === "Dress" || i.type === "One Piece");
-  const hasOuterwear = items.some((i) => OUTERWEAR.has(i.type));
+  const hasFullBody = items.some((i) => i.type === "Dress" || i.type === "One Piece");
 
   const filtered = hasFullBody
     ? items.filter((i) => !BASE_REPLACEABLE.has(i.type))  // drop Top/Shirt, Pants, Skirt
     : items;
-
-  // Option 3: for Jacket + Dress/One Piece, reverse the order so the jacket
-  // is applied to the clean user photo first, and the one-piece wraps over it.
-  if (hasFullBody && hasOuterwear) {
-    return [...filtered].sort((a, b) => {
-      const orderA = OUTERWEAR.has(a.type) ? 0 : 1;
-      const orderB = OUTERWEAR.has(b.type) ? 0 : 1;
-      return orderA - orderB;
-    });
-  }
 
   return [...filtered].sort(
     (a, b) => (LAYER_ORDER[a.type] ?? 1) - (LAYER_ORDER[b.type] ?? 1)
