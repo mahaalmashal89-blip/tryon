@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ANALYZE_STEPS } from "@/lib/types";
 import { tryonSession } from "@/lib/tryonSession";
-import { getFashnCategory, sortByLayer, fileToDataUrl, sleep } from "@/lib/fashn";
+import { buildTryonPlan, fileToDataUrl, sleep } from "@/lib/fashn";
 
 const MAX_POLL_ATTEMPTS = 90; // 3 minutes at 2-second intervals
 
@@ -40,14 +40,13 @@ export function AnalyzingScreen() {
       setStep(0);
       const userPhotoDataUrl = await fileToDataUrl(userFile);
 
-      // Sort garments: full-body items first, then layer top → bottom → jacket
-      const sorted = sortByLayer(garments);
-      const hasFullBody = sorted.some((g) => g.type === "Dress" || g.type === "One Piece");
-      const OUTERWEAR_TYPES = new Set(["Jacket", "Other"]);
+      // Normalize selection into physical dressing order and decide, per
+      // garment, which FASHN model applies it (see buildTryonPlan).
+      const plan = buildTryonPlan(garments);
       let currentModel = userPhotoDataUrl;
 
-      for (let gi = 0; gi < sorted.length; gi++) {
-        const garment = sorted[gi];
+      for (let gi = 0; gi < plan.length; gi++) {
+        const { garment, useMax, category, prompt } = plan[gi];
         setStep(Math.min(gi + 1, 2));
 
         // Resolve garment image
@@ -60,13 +59,6 @@ export function AnalyzingScreen() {
           throw new Error(`Garment "${garment.type}" has no image or URL. Please add one.`);
         }
 
-        // When a Jacket (outerwear) is applied on top of a full-body garment (Dress/One Piece),
-        // switch to tryon-max with an outerwear prompt. tryon-v1.6's category="tops" crops and
-        // replaces the upper body region, which destroys the one-piece underneath. tryon-max
-        // with a prompt instructs the model to treat this as layered outerwear instead.
-        const isOuterwear = OUTERWEAR_TYPES.has(garment.type);
-        const useMax = hasFullBody && isOuterwear;
-
         const requestBody: Record<string, unknown> = {
           model_image:   currentModel,
           garment_image: garmentImage,
@@ -74,12 +66,9 @@ export function AnalyzingScreen() {
 
         if (useMax) {
           requestBody.use_max = true;
-          requestBody.prompt =
-            "Wear this jacket as open outerwear layered over the existing outfit. " +
-            "Preserve the full-body garment underneath exactly as-is — do not redesign, " +
-            "replace, or add any part of it. Only the jacket should change.";
+          requestBody.prompt  = prompt;
         } else {
-          requestBody.category = getFashnCategory(garment.type);
+          requestBody.category = category;
         }
 
         // Submit to FASHN AI (via our server-side proxy)
