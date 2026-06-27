@@ -106,43 +106,9 @@ export function AnalyzingScreen() {
         currentModel = resultUrl;
       }
 
-      // Step 3 — remove background for a clean product-photo result.
-      // Non-fatal: if bg-remove fails we fall back to the original result.
-      setStep(3);
-      try {
-        const bgRes = await fetch("/api/tryon/background-remove", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ result_url: currentModel }),
-        });
-
-        if (bgRes.ok) {
-          const bgData = await bgRes.json();
-          const bgId: string = bgData.id;
-
-          if (bgId) {
-            let bgAttempts = 0;
-            while (bgAttempts < 30) {
-              await sleep(2000);
-              const statusRes  = await fetch(`/api/tryon/status/${bgId}`);
-              const statusData = await statusRes.json();
-              if (statusData.status === "completed") {
-                const bgUrl = statusData.output?.[0] ?? "";
-                if (bgUrl) currentModel = bgUrl;
-                break;
-              }
-              if (statusData.status === "failed") break;
-              bgAttempts++;
-            }
-          }
-        }
-      } catch {
-        // Fall back to original result URL with background intact
-      }
-
-      // Step 4 — done. Result URL is held in session only; the user chooses
+      // Step 3 — done. Result URL is held in session only; the user chooses
       // on the Results screen whether to download or save for 30 days.
-      setStep(4);
+      setStep(3);
       tryonSession.setResult(currentModel);
 
       // Release all image data from memory now that processing is complete.
@@ -198,7 +164,7 @@ export function AnalyzingScreen() {
       <div className="h-[6px] rounded-full bg-[#F2EEEC] overflow-hidden">
         <div
           className="h-full rounded-full shimmer-bar transition-all duration-700"
-          style={{ width: `${Math.round((step / 4) * 100)}%` }}
+          style={{ width: `${Math.round((step / 3) * 100)}%` }}
         />
       </div>
 

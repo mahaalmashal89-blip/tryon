@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ResultsVariant, STYLING_TIPS } from "@/lib/types";
 import { MiniTab } from "@/components/ui/TabBar";
 import { ScoreCircle } from "@/components/ui/ScoreCircle";
 import { tryonSession } from "@/lib/tryonSession";
 import { saveTryonSession } from "@/lib/tryonStore";
-import { compositeStudio } from "@/lib/studioComposite";
 
 const SCORE = 87;
 
@@ -18,59 +17,24 @@ export function ResultsScreen() {
   const [downloading, setDownloading] = useState(false);
   const [saved, setSaved]             = useState(false);
   const [saving, setSaving]           = useState(false);
-  const [compositedUrl, setCompositedUrl] = useState<string | null>(null);
-  const compositeBlobRef = useRef<string | null>(null);
 
   const resultUrl = mounted ? tryonSession.getResult() : null;
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Composite onto studio background once resultUrl is known
-  useEffect(() => {
-    if (!resultUrl) return;
-    let active = true;
-
-    compositeStudio(resultUrl)
-      .then((blobUrl) => {
-        if (!active) { URL.revokeObjectURL(blobUrl); return; }
-        // Revoke any previous composite
-        if (compositeBlobRef.current) URL.revokeObjectURL(compositeBlobRef.current);
-        compositeBlobRef.current = blobUrl;
-        setCompositedUrl(blobUrl);
-      })
-      .catch(() => { /* Fall back to plain resultUrl on canvas failure */ });
-
-    return () => {
-      active = false;
-      if (compositeBlobRef.current) {
-        URL.revokeObjectURL(compositeBlobRef.current);
-        compositeBlobRef.current = null;
-      }
-    };
-  }, [resultUrl]);
-
   async function handleDownload() {
-    if (downloading) return;
+    if (!resultUrl || downloading) return;
     setDownloading(true);
     try {
-      if (compositedUrl) {
-        // Composited JPEG is already a local blob — download directly
-        const a = document.createElement("a");
-        a.href = compositedUrl;
-        a.download = "tryon-result.jpg";
-        a.click();
-      } else if (resultUrl) {
-        // Fallback: proxy download of the raw FASHN result
-        const res = await fetch(`/api/tryon/download?url=${encodeURIComponent(resultUrl)}`);
-        if (!res.ok) throw new Error("Download failed");
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = "tryon-result.jpg";
-        a.click();
-        URL.revokeObjectURL(blobUrl);
-      }
+      const res = await fetch(`/api/tryon/download?url=${encodeURIComponent(resultUrl)}`);
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = "tryon-result.jpg";
+      a.click();
+      URL.revokeObjectURL(blobUrl);
     } finally {
       setDownloading(false);
     }
@@ -87,17 +51,14 @@ export function ResultsScreen() {
     }
   }
 
-  // Display URL: composited studio image once ready, raw result while compositing
-  const displayUrl = compositedUrl ?? resultUrl;
-
   const imagePanel = (
-    <div className="relative rounded-[20px] overflow-hidden border border-[rgba(20,16,22,0.08)] bg-[#f0ede8] h-[380px] md:h-full md:min-h-[560px]">
-      {displayUrl ? (
+    <div className="relative rounded-[20px] overflow-hidden border border-[rgba(20,16,22,0.08)] bg-white h-[380px] md:h-full md:min-h-[560px]">
+      {resultUrl ? (
         <img
-          key={displayUrl}
-          src={displayUrl}
+          src={resultUrl}
           alt="AI-generated try-on result"
-          className="absolute inset-0 w-full h-full object-contain object-center animate-fade"
+          className="absolute inset-0 w-full h-full object-contain object-center"
+          style={{ background: "#fff" }}
         />
       ) : (
         <>

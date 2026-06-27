@@ -76,7 +76,6 @@ export const ANALYZE_STEPS = [
   "Reading your photo",
   "Assembling the outfit",
   "Matching colour & fit",
-  "Removing background…",
   "Composing the look",
 ];
 
