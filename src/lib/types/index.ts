@@ -37,6 +37,7 @@ export const CLOTHING_TYPES = [
   "Skirt",
   "Dress",
   "One Piece",
+  "One Set",
   "Other",
 ] as const;
 

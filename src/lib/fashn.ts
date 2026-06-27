@@ -9,6 +9,7 @@ const CATEGORY_MAP: Record<string, FashnCategory> = {
   "Skirt":       "bottoms",
   "Dress":       "one-pieces",
   "One Piece":   "one-pieces",
+  "One Set":     "one-pieces",  // coordinated set — treated as a full-body garment
   "Other":       "tops",
 };
 
@@ -31,6 +32,7 @@ const CATEGORY_MAP: Record<string, FashnCategory> = {
 const LAYER_ORDER: Record<string, number> = {
   "Dress":       0,  // full-body base — applied first
   "One Piece":   0,
+  "One Set":     0,  // coordinated set (jacket+skirt/pants in one image) — base layer
   "Top / Shirt": 1,  // upper base layer
   "Pants":       2,  // bottoms over the base
   "Skirt":       2,
@@ -56,7 +58,7 @@ const BASE_REPLACEABLE = new Set(["Top / Shirt", "Pants", "Skirt"]);
  * is still applied on top.
  */
 export function sortByLayer<T extends { type: ClothingType | string }>(items: T[]): T[] {
-  const hasFullBody = items.some((i) => i.type === "Dress" || i.type === "One Piece");
+  const hasFullBody = items.some((i) => CONNECTED_FULLBODY.has(i.type));
 
   const filtered = hasFullBody
     ? items.filter((i) => !BASE_REPLACEABLE.has(i.type))  // drop Top/Shirt, Pants, Skirt
@@ -76,7 +78,10 @@ export function sortByLayer<T extends { type: ClothingType | string }>(items: T[
 // but the trace confirmed it ignores preservation prompts — the skirt was lost
 // even when tryon-max received the correct skirt result as its input. So
 // tryon-max is reserved ONLY for connected full-body garments.
-const CONNECTED_FULLBODY = new Set(["Dress", "One Piece"]);
+// One Set is a coordinated outfit (e.g. matching jacket+skirt) shown in a single
+// product image. It is treated as full-body: separable tops/bottoms are dropped
+// when it is present, and it always runs as a single tryon-max call.
+const CONNECTED_FULLBODY = new Set(["Dress", "One Piece", "One Set"]);
 
 // Prompt for the jacket step on tryon-max. It tells the model to treat the
 // jacket as an additive outer layer and to leave everything underneath — the
@@ -125,6 +130,12 @@ export function buildTryonPlan<T extends { type: ClothingType | string }>(
 
   return sorted.map((garment) => {
     const isOuterwear = OUTERWEAR.has(garment.type);
+
+    // One Set: a coordinated outfit (e.g. jacket+skirt) in a single product image.
+    // Always a single tryon-max call — never split and never downgraded to v1.6.
+    if (garment.type === "One Set") {
+      return { garment, useMax: true };
+    }
 
     // Case 5a: the Dress/One Piece step when a Jacket is also selected.
     // Keep v1.6 here — it correctly applies the one-piece before the jacket

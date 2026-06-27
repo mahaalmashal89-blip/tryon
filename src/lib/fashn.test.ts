@@ -8,9 +8,10 @@ import { buildTryonPlan, OUTER_LAYER_PROMPT } from "./fashn.ts";
 //   "Dress:v1.6/one-pieces"→ tryon-v1.6, category=one-pieces (Case 5a only)
 function summarize(types: string[]): string[] {
   return buildTryonPlan(types.map((type) => ({ type }))).map((step) => {
-    if (step.useMax && step.prompt) return `${step.garment.type}:max/prompt`;
-    if (step.useMax)                return `${step.garment.type}:max/${step.category}`;
-    return                                 `${step.garment.type}:v1.6/${step.category}`;
+    if (step.useMax && step.prompt)    return `${step.garment.type}:max/prompt`;
+    if (step.useMax && step.category)  return `${step.garment.type}:max/${step.category}`;
+    if (step.useMax)                   return `${step.garment.type}:max/no-category`;
+    return                                    `${step.garment.type}:v1.6/${step.category}`;
   });
 }
 
@@ -97,6 +98,23 @@ test("Top + Skirt + Jacket → top max, skirt max, jacket max last", () => {
     "Skirt:max/bottoms",
     "Jacket:max/tops",
   ]);
+});
+
+// ── One Set ───────────────────────────────────────────────────────────────────
+// A single product image showing a coordinated outfit (e.g. jacket+skirt in
+// one photo). Always a single tryon-max call — never split into multiple steps.
+
+test("One Set alone → single tryon-max call, no category, no prompt", () => {
+  assert.deepEqual(summarize(["One Set"]), ["One Set:max/no-category"]);
+  const plan = buildTryonPlan([{ type: "One Set" }]);
+  assert.equal(plan.length, 1);
+  assert.equal(plan[0].useMax, true);
+  assert.equal(plan[0].prompt, undefined);
+  assert.equal(plan[0].category, undefined);
+});
+
+test("One Set drops any loose Top/Pants/Skirt — full-body takes precedence", () => {
+  assert.deepEqual(summarize(["One Set", "Top / Shirt", "Pants"]), ["One Set:max/no-category"]);
 });
 
 // ── Case 5: connected full-body + jacket — UNCHANGED ─────────────────────────
