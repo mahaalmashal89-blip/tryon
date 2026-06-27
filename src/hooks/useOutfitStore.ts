@@ -9,7 +9,7 @@ export function useOutfitStore() {
   // Initialise from session so state survives back-navigation
   const [items, setItems] = useState<GarmentDraft[]>(() => tryonSession.getGarments());
 
-  const [source,    setSource]    = useState<OutfitSource>("url");
+  const [source,    setSource]    = useState<OutfitSource>("image");
   const [draftType, setDraftType] = useState<ClothingType | null>(null);
   const [draftUrl,  setDraftUrl]  = useState("");
   const [draftFile, setDraftFile] = useState<File | null>(null);
