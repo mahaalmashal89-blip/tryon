@@ -4,8 +4,10 @@ import { validateImageInput } from "@/lib/validateImage";
 import { logSecurityEvent, newRequestId } from "@/lib/securityLogger";
 
 const FASHN_API = "https://api.fashn.ai/v1";
-const FASHN_MODEL = "tryon-v1.6";
+const FASHN_MODEL_V16  = "tryon-v1.6";
+const FASHN_MODEL_MAX  = "tryon-max";
 const VALID_CATEGORIES = new Set(["tops", "bottoms", "one-pieces", "auto"]);
+const MAX_PROMPT_CHARS = 500;
 
 // Server-side hard cap: 10 MB binary ≈ 13.4 MB base64. Applies to data URLs only;
 // product URL strings are short and don't need this check.
@@ -51,15 +53,30 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { model_image, garment_image, category } = body;
+  const { model_image, garment_image, category, use_max, prompt } = body;
 
-  if (!model_image || !garment_image || !category) {
-    return Response.json({ error: "model_image, garment_image, and category are required." }, { status: 400 });
+  if (!model_image || !garment_image) {
+    return Response.json({ error: "model_image and garment_image are required." }, { status: 400 });
   }
 
-  if (!VALID_CATEGORIES.has(category)) {
-    logSecurityEvent({ ts: new Date().toISOString(), requestId, event: "INVALID_CATEGORY", route, userId: user.id });
-    return Response.json({ error: "Invalid request." }, { status: 400 });
+  // use_max: true → tryon-max (no category). Otherwise tryon-v1.6 requires category.
+  const useMax = use_max === true;
+
+  if (!useMax) {
+    if (!category) {
+      return Response.json({ error: "model_image, garment_image, and category are required." }, { status: 400 });
+    }
+    if (!VALID_CATEGORIES.has(category)) {
+      logSecurityEvent({ ts: new Date().toISOString(), requestId, event: "INVALID_CATEGORY", route, userId: user.id });
+      return Response.json({ error: "Invalid request." }, { status: 400 });
+    }
+  }
+
+  if (useMax && prompt != null) {
+    if (typeof prompt !== "string" || prompt.length > MAX_PROMPT_CHARS) {
+      logSecurityEvent({ ts: new Date().toISOString(), requestId, event: "INVALID_PROMPT", route, userId: user.id });
+      return Response.json({ error: "Invalid request." }, { status: 400 });
+    }
   }
 
   if (!validateImageInput(model_image).ok || !validateImageInput(garment_image).ok) {
@@ -72,6 +89,29 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Image is too large. Please use a smaller photo." }, { status: 413 });
   }
 
+  // Build the FASHN request based on which model to use.
+  const fashnInputs = useMax
+    ? {
+        // tryon-max: no category, uses product_image, supports prompt for styling control.
+        // Used specifically for outerwear (Jacket) when a full-body garment is present,
+        // so we can instruct the model not to redesign the underlying garment.
+        model_image,
+        product_image: garment_image,
+        generation_mode: "quality",
+        seed: Math.floor(Math.random() * 2 ** 32),
+        ...(prompt ? { prompt } : {}),
+      }
+    : {
+        // tryon-v1.6: category-based single-garment replacement.
+        model_image,
+        garment_image,
+        category,
+        mode: "quality",
+        seed: Math.floor(Math.random() * 2 ** 32),
+        moderation_level: "conservative",
+        segmentation_free: true,
+      };
+
   const fashnRes = await fetch(`${FASHN_API}/run`, {
     method: "POST",
     headers: {
@@ -79,23 +119,8 @@ export async function POST(req: NextRequest) {
       "Authorization": `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model_name: FASHN_MODEL,
-      inputs: {
-        model_image,
-        garment_image,
-        category,
-        // quality mode uses FASHN's highest-fidelity inference path.
-        // Slower than "balanced" but significantly reduces anatomy artifacts
-        // (hand deformation, leg distortion, body proportion changes).
-        mode: "quality",
-        // Random seed so retries produce genuinely different outputs.
-        seed: Math.floor(Math.random() * 2 ** 32),
-        // conservative blocks underwear/swimwear and is the safest default
-        // for culturally sensitive contexts (preserves headscarves/hijabs).
-        moderation_level: "conservative",
-        // Direct fit without segmentation — better body shape + skin preservation.
-        segmentation_free: true,
-      },
+      model_name: useMax ? FASHN_MODEL_MAX : FASHN_MODEL_V16,
+      inputs: fashnInputs,
     }),
   });
 

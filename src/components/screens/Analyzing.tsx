@@ -42,6 +42,8 @@ export function AnalyzingScreen() {
 
       // Sort garments: full-body items first, then layer top → bottom → jacket
       const sorted = sortByLayer(garments);
+      const hasFullBody = sorted.some((g) => g.type === "Dress" || g.type === "One Piece");
+      const OUTERWEAR_TYPES = new Set(["Jacket", "Other"]);
       let currentModel = userPhotoDataUrl;
 
       for (let gi = 0; gi < sorted.length; gi++) {
@@ -58,15 +60,33 @@ export function AnalyzingScreen() {
           throw new Error(`Garment "${garment.type}" has no image or URL. Please add one.`);
         }
 
+        // When a Jacket (outerwear) is applied on top of a full-body garment (Dress/One Piece),
+        // switch to tryon-max with an outerwear prompt. tryon-v1.6's category="tops" crops and
+        // replaces the upper body region, which destroys the one-piece underneath. tryon-max
+        // with a prompt instructs the model to treat this as layered outerwear instead.
+        const isOuterwear = OUTERWEAR_TYPES.has(garment.type);
+        const useMax = hasFullBody && isOuterwear;
+
+        const requestBody: Record<string, unknown> = {
+          model_image:   currentModel,
+          garment_image: garmentImage,
+        };
+
+        if (useMax) {
+          requestBody.use_max = true;
+          requestBody.prompt =
+            "Wear this jacket as open outerwear layered over the existing outfit. " +
+            "Preserve the full-body garment underneath exactly as-is — do not redesign, " +
+            "replace, or add any part of it. Only the jacket should change.";
+        } else {
+          requestBody.category = getFashnCategory(garment.type);
+        }
+
         // Submit to FASHN AI (via our server-side proxy)
         const runRes = await fetch("/api/tryon/run", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model_image:   currentModel,
-            garment_image: garmentImage,
-            category:      getFashnCategory(garment.type),
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         const runData = await runRes.json();
