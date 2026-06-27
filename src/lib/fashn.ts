@@ -14,35 +14,28 @@ const CATEGORY_MAP: Record<string, FashnCategory> = {
 
 // Lower number = applied FIRST when chaining sequential FASHN calls.
 //
-// ORDER IS DETERMINED BY API BEHAVIOR, NOT VISUAL LAYERING:
+// This is the stable baseline order (commit dfd6c89), restored after the
+// One Piece experiments. It is the physical "getting dressed" order:
+//   full-body base → top → bottom → jacket (outermost, applied last)
 //
-// tryon-v1.6 category="tops" (jacket) regenerates the waist region and
-// reconstructs the original trousers from the user photo — destroying any
-// skirt applied in a prior step.
+// Why this order for Jacket + Skirt / Jacket + Pants (Case 4):
+// This is the behavior that produced the best garment fidelity in real use.
+// The bottom is applied first, then the jacket goes on as the outer layer.
+// (An A/B test once suggested jacket-first prevents trouser restoration, but
+// real-world testing across many runs showed bottom-first preserves the
+// selected garments more faithfully, so we keep the baseline order.)
 //
-// tryon-v1.6 category="bottoms" (skirt) only replaces the lower body and
-// does NOT touch the upper body — so a jacket applied in a prior step
-// is preserved untouched.
-//
-// Empirically verified (jacket + skirt A/B test):
-//   jacket first (tops), then skirt (bottoms) → jacket kept, skirt correct ✅
-//   skirt first (bottoms), then jacket (tops) → skirt destroyed, trousers back ❌
-//
-// tryon-max with a preservation prompt was also tested (skirt first, then
-// tryon-max jacket last). The pipeline executed correctly (chain confirmed via
-// trace), but tryon-max ignored the preservation prompt and lost the skirt
-// anyway. tryon-max prompt adherence is NOT reliable for garment preservation.
-//
-// Therefore: jacket (tops) BEFORE bottoms. Bottoms win when applied last.
-// Exception: Dress/One Piece + Jacket uses tryon-max — see buildTryonPlan().
+// Case 5 (Jacket + Dress / One Piece) keeps this same ordering but switches
+// the jacket step to tryon-max — see buildTryonPlan(). That special case is
+// EXPERIMENTAL and must never be applied to Skirt/Pants combinations.
 const LAYER_ORDER: Record<string, number> = {
   "Dress":       0,  // full-body base — applied first
   "One Piece":   0,
   "Top / Shirt": 1,  // upper base layer
-  "Jacket":      2,  // outerwear before bottoms — preserves bottom when applied next
-  "Other":       2,
-  "Pants":       3,  // bottoms applied LAST — v1.6/bottoms preserves upper body
-  "Skirt":       3,
+  "Pants":       2,  // bottoms over the base
+  "Skirt":       2,
+  "Jacket":      3,  // outerwear — applied LAST so it is the outermost layer
+  "Other":       3,
 };
 
 export function getFashnCategory(type: string): FashnCategory {
