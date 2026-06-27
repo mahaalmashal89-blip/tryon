@@ -4,7 +4,6 @@ import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CLOTHING_TYPES } from "@/lib/types";
 import { useOutfitStore } from "@/hooks/useOutfitStore";
-import { TabBar } from "@/components/ui/TabBar";
 import { Chip } from "@/components/ui/Chip";
 
 export function TryOnOutfitScreen() {
@@ -115,28 +114,7 @@ export function TryOnOutfitScreen() {
           Add a piece
         </span>
 
-        <div className="mt-[10px]">
-          <TabBar
-            tabs={[
-              { label: "Paste link",   value: "url"   },
-              { label: "Upload image", value: "image" },
-            ]}
-            active={source}
-            onChange={(v) => setSource(v as "url" | "image")}
-            bordered
-          />
-        </div>
-
-        {source === "url" && (
-          <input
-            value={draftUrl}
-            onChange={(e) => setDraftUrl(e.target.value)}
-            placeholder="https://store.com/the-piece"
-            className="mt-[12px] w-full box-border py-[14px] px-[16px] border border-[rgba(20,16,22,0.12)] rounded-[14px] bg-white font-[family-name:var(--font-grotesk)] text-[15px] text-[#141016] outline-none"
-          />
-        )}
-
-        {source === "image" && (
+        {true && (
           <>
             <input
               ref={ref}
