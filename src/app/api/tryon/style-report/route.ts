@@ -14,16 +14,25 @@ import { logSecurityEvent, newRequestId } from "@/lib/securityLogger";
 const DEFAULT_MODEL = "openai/gpt-4o";
 
 // ── Output schema ─────────────────────────────────────────────────────────────
+// Use z.coerce.number() so string-typed numbers ("16") are accepted without
+// failing validation — GPT-4o occasionally returns JSON with number fields
+// as strings when no strict output mode is available.
+const ScoreInt = z.coerce.number().int().min(0).max(20);
+const BoolCoerce = z.union([
+  z.boolean(),
+  z.string().transform(v => v === "true" || v === "True" || v === "1" || v === "yes"),
+]);
+
 const StyleReportSchema = z.object({
   confidence: z.enum(["high", "medium", "low"]),
   confidence_reason: z.string().nullable(),
-  score: z.number().int().min(0).max(100),
+  score: z.coerce.number().int().min(0).max(100),
   score_breakdown: z.object({
-    color_harmony:     z.number().int().min(0).max(20),
-    outfit_cohesion:   z.number().int().min(0).max(20),
-    layering:          z.number().int().min(0).max(20),
-    visual_balance:    z.number().int().min(0).max(20),
-    style_suitability: z.number().int().min(0).max(20),
+    color_harmony:     ScoreInt,
+    outfit_cohesion:   ScoreInt,
+    layering:          ScoreInt,
+    visual_balance:    ScoreInt,
+    style_suitability: ScoreInt,
   }),
   score_reasoning: z.string(),
   color_match: z.object({
@@ -34,13 +43,13 @@ const StyleReportSchema = z.object({
   }),
   outfit_cohesion: z.object({
     rating:               z.string(),
-    pieces_work_together: z.boolean(),
+    pieces_work_together: BoolCoerce,
     detail:               z.string(),
   }),
   style_category: z.string(),
   styling_tips: z.array(z.string()).min(1).max(3),
   worth_buying: z.object({
-    verdict:   z.boolean(),
+    verdict:   BoolCoerce,
     label:     z.string(),
     reasoning: z.string(),
   }),
@@ -126,7 +135,44 @@ OUTPUT RULES — follow exactly:
 - "worth_buying.label": 2–3 words — "Worth it", "Maybe", or "Skip it"
 - "worth_buying.reasoning": max 12 words explaining the verdict
 
-Respond with valid JSON only. No explanation outside the JSON object.`;
+Return ONLY a JSON object that matches exactly this structure. Use these exact field names — no additions, no renamings:
+
+{
+  "confidence": "high",
+  "confidence_reason": null,
+  "score": 74,
+  "score_breakdown": {
+    "color_harmony": 16,
+    "outfit_cohesion": 15,
+    "layering": 14,
+    "visual_balance": 15,
+    "style_suitability": 14
+  },
+  "score_reasoning": "Balanced neutral palette with a cohesive smart casual feel.",
+  "color_match": {
+    "rating": "Good",
+    "palette_type": "neutral earth tones",
+    "seasonal_palette": "Autumn",
+    "detail": "Brown and cream pair naturally without competing."
+  },
+  "outfit_cohesion": {
+    "rating": "Cohesive",
+    "pieces_work_together": true,
+    "detail": "Both pieces share the same relaxed-elegant aesthetic."
+  },
+  "style_category": "Smart Casual",
+  "styling_tips": [
+    "Add a slim belt to define the waist.",
+    "Try pointed flats to elongate the silhouette."
+  ],
+  "worth_buying": {
+    "verdict": true,
+    "label": "Worth it",
+    "reasoning": "Versatile and polished for multiple occasions."
+  }
+}
+
+Fill in real values for the outfit in the image. Do not add extra fields. Do not wrap the JSON in markdown code blocks.`;
 
 // ── Security ──────────────────────────────────────────────────────────────────
 const ALLOWED_IMAGE_HOSTS = ["cdn.fashn.ai", "fashn.ai"];
@@ -205,7 +251,7 @@ export async function POST(req: NextRequest) {
     });
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20_000);
+    const timeout = setTimeout(() => controller.abort(), 30_000);
 
     let report;
     try {
@@ -239,7 +285,24 @@ Score the outfit using your rubric and return a valid JSON object. Focus only on
       );
 
       const raw = response.choices[0]?.message.content ?? "";
-      const parsed = StyleReportSchema.safeParse(JSON.parse(raw));
+
+      // Strip markdown code fences that some models wrap JSON in (```json ... ```)
+      const jsonText = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+
+      // If the model omitted the top-level "score" but returned "score_breakdown",
+      // calculate it so the schema validation doesn't fail on that field alone.
+      let parsed;
+      try {
+        const obj = JSON.parse(jsonText);
+        if (typeof obj?.score === "undefined" && obj?.score_breakdown) {
+          const b = obj.score_breakdown;
+          obj.score = (b.color_harmony ?? 0) + (b.outfit_cohesion ?? 0) +
+                      (b.layering ?? 0) + (b.visual_balance ?? 0) + (b.style_suitability ?? 0);
+        }
+        parsed = StyleReportSchema.safeParse(obj);
+      } catch {
+        throw new Error("Model returned invalid JSON");
+      }
 
       if (!parsed.success) {
         console.error("[style-report] schema validation failed:", parsed.error.flatten());

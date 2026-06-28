@@ -6,7 +6,9 @@ import { ANALYZE_STEPS } from "@/lib/types";
 import { tryonSession } from "@/lib/tryonSession";
 import { buildTryonPlan, fileToDataUrl, sleep } from "@/lib/fashn";
 
-const MAX_POLL_ATTEMPTS = 90; // 3 minutes at 2-second intervals
+const POLL_INTERVAL_MS  = 2_000;
+const POLL_TIMEOUT_MS   = 10_000; // per-request abort after 10 s
+const MAX_WALL_CLOCK_MS = 3 * 60 * 1000; // 3 minutes total, regardless of fetch latency
 
 export function AnalyzingScreen() {
   const router  = useRouter();
@@ -125,29 +127,40 @@ export function AnalyzingScreen() {
         if (!predictionId) throw new Error("FASHN API did not return a prediction ID.");
         console.log("  predictionId:", predictionId);
 
-        // Poll for result
-        let attempts = 0;
+        // Poll for result — bounded by wall-clock time, not iteration count.
+        // Each status fetch is individually aborted after POLL_TIMEOUT_MS so
+        // a slow FASHN response can never stretch the loop beyond MAX_WALL_CLOCK_MS.
         let resultUrl = "";
+        const deadline = Date.now() + MAX_WALL_CLOCK_MS;
 
-        while (attempts < MAX_POLL_ATTEMPTS) {
-          await sleep(2000);
-          const statusRes  = await fetch(`/api/tryon/status/${predictionId}`);
-          const statusData = await statusRes.json();
+        while (Date.now() < deadline) {
+          await sleep(POLL_INTERVAL_MS);
+
+          const pollController = new AbortController();
+          const pollTimeout = setTimeout(() => pollController.abort(), POLL_TIMEOUT_MS);
+
+          let statusData: Record<string, unknown>;
+          try {
+            const statusRes = await fetch(`/api/tryon/status/${predictionId}`, {
+              signal: pollController.signal,
+            });
+            statusData = await statusRes.json();
+          } finally {
+            clearTimeout(pollTimeout);
+          }
 
           if (statusData.status === "completed") {
-            resultUrl = statusData.output?.[0] ?? "";
+            resultUrl = statusData.output?.[0] as string ?? "";
             if (!resultUrl) throw new Error("FASHN returned no output image.");
             break;
           }
 
           if (statusData.status === "failed") {
             const msg = typeof statusData.error === "object"
-              ? (statusData.error?.message ?? statusData.error?.name ?? "Try-on generation failed.")
-              : (statusData.error ?? "Try-on generation failed.");
+              ? ((statusData.error as Record<string, string>)?.message ?? (statusData.error as Record<string, string>)?.name ?? "Try-on generation failed.")
+              : (statusData.error as string ?? "Try-on generation failed.");
             throw new Error(msg);
           }
-
-          attempts++;
         }
 
         if (!resultUrl) throw new Error("Try-on timed out. Please try again.");

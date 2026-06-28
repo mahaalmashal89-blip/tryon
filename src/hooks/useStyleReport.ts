@@ -19,7 +19,7 @@ export function useStyleReport(resultUrl: string | null) {
     if (garmentTypes.length === 0) return;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const timeout = setTimeout(() => controller.abort(), 35_000);
 
     setReportState("loading");
 

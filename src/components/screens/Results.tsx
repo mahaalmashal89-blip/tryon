@@ -167,7 +167,7 @@ export function ResultsScreen() {
                 </ul>
               ) : (
                 <p className="mt-[12px] font-[family-name:var(--font-grotesk)] text-[13px] text-[#9A9298]">
-                  Styling tips unavailable.
+                  Tips unavailable — generate a new look to retry.
                 </p>
               )}
             </div>
@@ -276,7 +276,7 @@ export function ResultsScreen() {
           ) : (
             <div className="flex items-center gap-[14px] p-[18px] rounded-[18px] bg-[#F2EEEC]">
               <div className="font-[family-name:var(--font-grotesk)] text-[13px] text-[#9A9298]">
-                Style analysis unavailable for this session.
+                Style analysis couldn&apos;t be completed. Generate a new look to retry.
               </div>
             </div>
           )}

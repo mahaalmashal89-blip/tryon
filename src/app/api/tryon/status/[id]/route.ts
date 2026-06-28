@@ -40,6 +40,7 @@ export async function GET(
   const fashnRes = await fetch(`${FASHN_API}/status/${id}`, {
     headers: { "Authorization": `Bearer ${key}` },
     cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
   });
 
   const data = await fashnRes.json();
