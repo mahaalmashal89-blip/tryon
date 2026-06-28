@@ -43,10 +43,11 @@ export interface StyleReport {
   };
   score_reasoning: string;
   color_match: {
-    rating:           string;
-    palette_type:     string;
-    seasonal_palette: string | null;
-    detail:           string;
+    rating:                   string;
+    palette_type:             string;
+    seasonal_palette:         string | null;
+    seasonal_palette_reason:  string | null;
+    detail:                   string;
   };
   outfit_cohesion: {
     rating:               string;
@@ -55,6 +56,7 @@ export interface StyleReport {
   };
   style_category: string;
   styling_tips: string[];
+  color_recommendations: string[];
   worth_buying: {
     verdict:   boolean;
     label:     string;

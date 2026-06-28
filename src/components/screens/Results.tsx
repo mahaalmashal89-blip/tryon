@@ -110,8 +110,11 @@ export function ResultsScreen() {
     ? `${report.color_match.rating} · ${report.color_match.palette_type}`
     : null;
 
-  const styleText = report?.style_category ?? null;
-  const tips      = report?.styling_tips ?? [];
+  const styleText          = report?.style_category ?? null;
+  const tips               = report?.styling_tips ?? [];
+  const colorRecs          = report?.color_recommendations ?? [];
+  const seasonalPalette    = report?.color_match.seasonal_palette ?? null;
+  const seasonalReason     = report?.color_match.seasonal_palette_reason ?? null;
 
   const verdictContent = (
     <>
@@ -135,6 +138,25 @@ export function ResultsScreen() {
               )}
             </div>
 
+            {/* Seasonal palette */}
+            <div className="py-[15px]" style={{ borderTop: "1px solid rgba(20,16,22,0.1)" }}>
+              <div className="flex justify-between items-baseline">
+                <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">Seasonal palette</span>
+                {isLoading ? (
+                  <Skeleton className="h-[22px] w-[140px]" />
+                ) : (
+                  <span className="font-[family-name:var(--font-bodoni)] text-[22px] text-[#141016]">
+                    {seasonalPalette ?? "—"}
+                  </span>
+                )}
+              </div>
+              {!isLoading && seasonalReason && (
+                <p className="m-0 mt-[6px] font-[family-name:var(--font-grotesk)] text-[12px] leading-[1.5] text-[#9A9298] text-right">
+                  {seasonalReason}
+                </p>
+              )}
+            </div>
+
             {/* Style */}
             <div className="flex justify-between items-baseline py-[15px]" style={{ borderTop: "1px solid rgba(20,16,22,0.1)" }}>
               <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">Style</span>
@@ -154,7 +176,6 @@ export function ResultsScreen() {
                 <div className="mt-[12px] flex flex-col gap-[10px]">
                   <Skeleton className="h-[18px] w-full" />
                   <Skeleton className="h-[18px] w-[85%]" />
-                  <Skeleton className="h-[18px] w-[90%]" />
                 </div>
               ) : tips.length > 0 ? (
                 <ul className="m-0 mt-[12px] p-0 list-none flex flex-col gap-[10px]">
@@ -170,6 +191,26 @@ export function ResultsScreen() {
                   Tips unavailable — generate a new look to retry.
                 </p>
               )}
+            </div>
+
+            {/* Color recommendations */}
+            <div className="py-[15px]" style={{ borderTop: "1px solid rgba(20,16,22,0.1)" }}>
+              <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">Color picks for next time</span>
+              {isLoading ? (
+                <div className="mt-[12px] flex flex-col gap-[10px]">
+                  <Skeleton className="h-[18px] w-full" />
+                  <Skeleton className="h-[18px] w-[80%]" />
+                </div>
+              ) : colorRecs.length > 0 ? (
+                <ul className="m-0 mt-[12px] p-0 list-none flex flex-col gap-[10px]">
+                  {colorRecs.map((text, i) => (
+                    <li key={i} className="flex gap-[10px] font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.45] text-[#3A343C]">
+                      <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#9A9298] pt-[2px]">→</span>
+                      {text}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
 
           </div>
@@ -209,15 +250,17 @@ export function ResultsScreen() {
               <>
                 <Skeleton className="flex-1 h-[70px] rounded-[14px]" />
                 <Skeleton className="flex-1 h-[70px] rounded-[14px]" />
+                <Skeleton className="flex-1 h-[70px] rounded-[14px]" />
               </>
             ) : (
               [
-                ["Color",  report?.color_match.rating  ?? "—"],
-                ["Style",  report?.style_category      ?? "—"],
+                ["Color",   report?.color_match.rating  ?? "—"],
+                ["Palette", seasonalPalette              ?? "—"],
+                ["Style",   report?.style_category       ?? "—"],
               ].map(([label, val]) => (
                 <div key={label} className="flex-1 border border-[rgba(20,16,22,0.1)] rounded-[14px] p-[14px]">
                   <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#9A9298]">{label}</div>
-                  <div className="font-[family-name:var(--font-bodoni)] text-[19px] text-[#141016] mt-[4px]">{val}</div>
+                  <div className="font-[family-name:var(--font-bodoni)] text-[16px] text-[#141016] mt-[4px] leading-tight">{val}</div>
                 </div>
               ))
             )}
@@ -229,7 +272,6 @@ export function ResultsScreen() {
               <div className="mt-[12px] flex flex-col gap-[10px]">
                 <Skeleton className="h-[18px] w-full" />
                 <Skeleton className="h-[18px] w-[85%]" />
-                <Skeleton className="h-[18px] w-[90%]" />
               </div>
             ) : tips.length > 0 ? (
               <ul className="m-0 mt-[12px] p-0 list-none flex flex-col gap-[10px]">
@@ -246,6 +288,20 @@ export function ResultsScreen() {
               </p>
             )}
           </div>
+
+          {!isLoading && colorRecs.length > 0 && (
+            <div className="mt-[18px]">
+              <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">Color picks for next time</span>
+              <ul className="m-0 mt-[12px] p-0 list-none flex flex-col gap-[10px]">
+                {colorRecs.map((text, i) => (
+                  <li key={i} className="flex gap-[10px] font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.45] text-[#3A343C]">
+                    <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#9A9298] pt-[2px]">→</span>
+                    {text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
