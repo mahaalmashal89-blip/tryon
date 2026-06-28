@@ -16,7 +16,7 @@ import type { StyleReport } from "@/lib/types";
 const T = {
   en: {
     reportLabel:    "AI Stylist Report",
-    pageTitle:      "⭐ Style Analysis",
+    pageTitle:      "Style Analysis",
     confidence:     { high: "High confidence", medium: "Medium confidence", low: "Low confidence" },
     score:          "Score",
     scoreSheet:     "Score Breakdown",
@@ -56,7 +56,7 @@ const T = {
   },
   ar: {
     reportLabel:    "تقرير المصممة الذكية",
-    pageTitle:      "⭐ تحليل الإطلالة",
+    pageTitle:      "تحليل الإطلالة",
     confidence:     { high: "ثقة عالية", medium: "ثقة متوسطة", low: "ثقة منخفضة" },
     score:          "النقاط",
     scoreSheet:     "تفصيل النقاط",
@@ -123,11 +123,9 @@ function ConfidenceBadge({ report, loading, lang }: { report: StyleReport | null
   );
 }
 
-function TapHint({ label }: { label: string }) {
+function Chevron() {
   return (
-    <span className="font-[family-name:var(--font-mono)] text-[9px] tracking-[0.1em] text-[#C4BEC8] uppercase">
-      {label}
-    </span>
+    <span className="font-[family-name:var(--font-grotesk)] text-[16px] text-[#C8C2CC] leading-none flex-none">›</span>
   );
 }
 
@@ -274,112 +272,133 @@ export function ResultsScreen() {
       {/* ── Variant A ── */}
       {variant === "a" && (
         <div>
-          <h1 className="m-0 mb-[16px] font-[family-name:var(--font-bodoni)] font-medium text-[30px] leading-none text-[#141016]">
+          {/* Page title — large editorial serif */}
+          <h1 className="m-0 mb-[28px] font-[family-name:var(--font-bodoni)] font-medium text-[34px] leading-[1] tracking-[-0.01em] text-[#141016]">
             {t.pageTitle}
           </h1>
+
           <div className="flex flex-col">
 
-            {/* Color Match — tappable */}
+            {/* ── Color Match — tappable row ── */}
             <button
               onClick={() => report && setColorOpen(true)}
               disabled={!report}
-              className="flex justify-between items-center py-[15px] border-none bg-transparent cursor-pointer text-left w-full disabled:cursor-default"
-              style={{ borderTop: "1px solid rgba(20,16,22,0.1)" }}
+              className="flex justify-between items-center py-[20px] border-none bg-transparent cursor-pointer text-left w-full disabled:cursor-default group"
+              style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}
             >
-              <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">{t.colorMatch}</span>
-              <div className="flex items-center gap-[8px]">
+              <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298]">
+                {t.colorMatch}
+              </span>
+              <div className="flex items-center gap-[10px]">
                 {isLoading ? (
-                  <Skeleton className="h-[22px] w-[180px]" />
+                  <Skeleton className="h-[20px] w-[170px]" />
                 ) : (
                   <>
-                    {report && <TapHint label={t.tapDetails} />}
-                    <span className="font-[family-name:var(--font-bodoni)] text-[22px] text-[#141016]">
+                    <span className="font-[family-name:var(--font-bodoni)] text-[20px] text-[#141016]">
                       {colorMatchText ?? "—"}
                     </span>
+                    {report && <Chevron />}
                   </>
                 )}
               </div>
             </button>
 
-            {/* Seasonal Palette — tappable */}
+            {/* ── Seasonal Palette — tappable row ── */}
             <button
               onClick={() => report && setPaletteOpen(true)}
               disabled={!report}
-              className="w-full border-none bg-transparent cursor-pointer text-left disabled:cursor-default py-[15px]"
-              style={{ borderTop: "1px solid rgba(20,16,22,0.1)" }}
+              className="flex justify-between items-center py-[20px] w-full border-none bg-transparent cursor-pointer text-left disabled:cursor-default"
+              style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}
             >
-              <div className="flex justify-between items-center">
-                <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">{t.palette}</span>
-                <div className="flex items-center gap-[8px]">
-                  {isLoading ? (
-                    <Skeleton className="h-[22px] w-[140px]" />
-                  ) : (
-                    <>
-                      {report && seasonalPalette && <TapHint label={t.tapDetails} />}
-                      <span className="font-[family-name:var(--font-bodoni)] text-[22px] text-[#141016]">
-                        {seasonalPalette ?? "—"}
-                      </span>
-                    </>
-                  )}
-                </div>
+              <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298]">
+                {t.palette}
+              </span>
+              <div className="flex items-center gap-[10px]">
+                {isLoading ? (
+                  <Skeleton className="h-[20px] w-[130px]" />
+                ) : (
+                  <>
+                    <span className="font-[family-name:var(--font-bodoni)] text-[20px] text-[#141016]">
+                      {seasonalPalette ?? "—"}
+                    </span>
+                    {report && seasonalPalette && <Chevron />}
+                  </>
+                )}
               </div>
-              {!isLoading && seasonalReason && (
-                <p className="m-0 mt-[5px] font-[family-name:var(--font-grotesk)] text-[12px] leading-[1.5] text-[#9A9298] text-right">
-                  {seasonalReason}
-                </p>
-              )}
             </button>
 
-            {/* Style */}
-            <div className="flex justify-between items-baseline py-[15px]" style={{ borderTop: "1px solid rgba(20,16,22,0.1)" }}>
-              <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">{t.style}</span>
+            {/* ── Style — static row ── */}
+            <div
+              className="flex justify-between items-center py-[20px]"
+              style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}
+            >
+              <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298]">
+                {t.style}
+              </span>
               {isLoading ? (
-                <Skeleton className="h-[22px] w-[120px]" />
+                <Skeleton className="h-[20px] w-[110px]" />
               ) : (
-                <span className="font-[family-name:var(--font-bodoni)] text-[22px] text-[#141016]">
+                <span className="font-[family-name:var(--font-bodoni)] text-[20px] text-[#141016]">
                   {styleText ?? "—"}
                 </span>
               )}
             </div>
 
-            {/* Styling tips */}
-            <div className="py-[15px]" style={{ borderTop: "1px solid rgba(20,16,22,0.1)" }}>
-              <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">{t.tips}</span>
+            {/* ── Styling Tips ── */}
+            <div
+              className="py-[20px]"
+              style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}
+            >
+              <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298]">
+                {t.tips}
+              </span>
               {isLoading ? (
-                <div className="mt-[12px] flex flex-col gap-[10px]">
-                  <Skeleton className="h-[18px] w-full" />
-                  <Skeleton className="h-[18px] w-[85%]" />
+                <div className="mt-[14px] flex flex-col gap-[12px]">
+                  <Skeleton className="h-[16px] w-full" />
+                  <Skeleton className="h-[16px] w-[80%]" />
                 </div>
               ) : tips.length > 0 ? (
-                <ul className="m-0 mt-[12px] p-0 list-none flex flex-col gap-[10px]">
-                  {tips.map((text, i) => (
-                    <li key={i} className="flex gap-[10px] font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.45] text-[#3A343C]">
-                      <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#141016] pt-[2px]">0{i + 1}</span>
-                      {text}
+                <ul className="m-0 mt-[14px] p-0 list-none flex flex-col gap-[14px]">
+                  {tips.slice(0, 2).map((text, i) => (
+                    <li key={i} className="flex gap-[14px] items-start">
+                      <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.06em] text-[#C4BEC8] pt-[3px] flex-none w-[16px]">
+                        0{i + 1}
+                      </span>
+                      <span className="font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.65] text-[#3A343C]">
+                        {text}
+                      </span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-[12px] font-[family-name:var(--font-grotesk)] text-[13px] text-[#9A9298]">
+                <p className="mt-[12px] m-0 font-[family-name:var(--font-grotesk)] text-[13px] text-[#9A9298]">
                   {t.tipsNone}
                 </p>
               )}
             </div>
 
-            {/* Color picks */}
+            {/* ── Color Picks ── */}
             {(!isLoading && colorRecs.length > 0) && (
-              <div className="py-[15px]" style={{ borderTop: "1px solid rgba(20,16,22,0.1)" }}>
-                <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">{t.colorPicks}</span>
-                <ul className="m-0 mt-[12px] p-0 list-none flex flex-col gap-[10px]">
+              <div
+                className="py-[20px]"
+                style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}
+              >
+                <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298]">
+                  {t.colorPicks}
+                </span>
+                <ul className="m-0 mt-[14px] p-0 list-none flex flex-col gap-[12px]">
                   {colorRecs.map((text, i) => (
-                    <li key={i} className="flex gap-[10px] font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.45] text-[#3A343C]">
-                      <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#9A9298] pt-[2px]">→</span>
-                      {text}
+                    <li key={i} className="flex gap-[12px] items-start">
+                      <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#C4BEC8] pt-[3px] flex-none">→</span>
+                      <span className="font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.65] text-[#3A343C]">
+                        {text}
+                      </span>
                     </li>
                   ))}
                 </ul>
               </div>
             )}
+
           </div>
         </div>
       )}
@@ -387,7 +406,8 @@ export function ResultsScreen() {
       {/* ── Variant B ── */}
       {variant === "b" && (
         <div>
-          <div className="flex items-end gap-[14px] pb-[18px]" style={{ borderBottom: "1px solid rgba(20,16,22,0.1)" }}>
+          {/* Score header */}
+          <div className="flex items-end gap-[14px] pb-[22px]" style={{ borderBottom: "1px solid rgba(20,16,22,0.08)" }}>
             {isLoading ? (
               <Skeleton className="h-[67px] w-[100px]" />
             ) : (
@@ -396,34 +416,35 @@ export function ResultsScreen() {
                 disabled={!report}
                 className="border-none bg-transparent p-0 cursor-pointer disabled:cursor-default"
               >
-                <span className="font-[family-name:var(--font-bodoni)] font-semibold text-[84px] leading-[0.8] tracking-[-0.02em] text-[#141016]">
+                <span className="font-[family-name:var(--font-bodoni)] font-semibold text-[84px] leading-[0.85] tracking-[-0.03em] text-[#141016]">
                   {score ?? "—"}
                 </span>
               </button>
             )}
-            <div className="pb-[8px]">
-              <div className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">{t.outOf} 100</div>
+            <div className="pb-[6px]">
+              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298]">{t.outOf} 100</div>
               {isLoading ? (
-                <Skeleton className="mt-[5px] h-[24px] w-[120px] rounded-full" />
+                <Skeleton className="mt-[6px] h-[22px] w-[120px] rounded-full" />
               ) : report ? (
                 <div
-                  className="inline-block mt-[5px] px-[10px] py-[3px] rounded-full font-[family-name:var(--font-grotesk)] font-semibold text-[13px] text-[#141016]"
+                  className="inline-block mt-[6px] px-[10px] py-[4px] rounded-full font-[family-name:var(--font-grotesk)] text-[12px] text-[#141016]"
                   style={{ background: "var(--lime)" }}
                 >
-                  {report.score_reasoning.length > 40
-                    ? report.score_reasoning.slice(0, 38) + "…"
+                  {report.score_reasoning.length > 44
+                    ? report.score_reasoning.slice(0, 42) + "…"
                     : report.score_reasoning}
                 </div>
               ) : null}
             </div>
           </div>
 
-          <div className="flex gap-[10px] mt-[18px]">
+          {/* 3-card summary */}
+          <div className="flex gap-[8px] mt-[20px]">
             {isLoading ? (
               <>
-                <Skeleton className="flex-1 h-[70px] rounded-[14px]" />
-                <Skeleton className="flex-1 h-[70px] rounded-[14px]" />
-                <Skeleton className="flex-1 h-[70px] rounded-[14px]" />
+                <Skeleton className="flex-1 h-[72px] rounded-[14px]" />
+                <Skeleton className="flex-1 h-[72px] rounded-[14px]" />
+                <Skeleton className="flex-1 h-[72px] rounded-[14px]" />
               </>
             ) : (
               [
@@ -435,46 +456,50 @@ export function ResultsScreen() {
                   key={label}
                   onClick={action}
                   disabled={!action || !report}
-                  className="flex-1 border border-[rgba(20,16,22,0.1)] rounded-[14px] p-[14px] text-left bg-white cursor-pointer disabled:cursor-default"
+                  className="flex-1 border border-[rgba(20,16,22,0.08)] rounded-[14px] p-[14px] text-left bg-white cursor-pointer disabled:cursor-default"
                 >
-                  <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#9A9298]">{label}</div>
-                  <div className="font-[family-name:var(--font-bodoni)] text-[16px] text-[#141016] mt-[4px] leading-tight">{val}</div>
+                  <div className="font-[family-name:var(--font-mono)] text-[9px] tracking-[0.12em] uppercase text-[#9A9298]">{label}</div>
+                  <div className="font-[family-name:var(--font-bodoni)] text-[15px] text-[#141016] mt-[5px] leading-[1.2]">{val}</div>
                 </button>
               ))
             )}
           </div>
 
-          <div className="mt-[18px]">
-            <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">{t.stylingNotes}</span>
+          {/* Styling notes */}
+          <div className="mt-[24px]">
+            <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298]">{t.stylingNotes}</span>
             {isLoading ? (
-              <div className="mt-[12px] flex flex-col gap-[10px]">
-                <Skeleton className="h-[18px] w-full" />
-                <Skeleton className="h-[18px] w-[85%]" />
+              <div className="mt-[14px] flex flex-col gap-[12px]">
+                <Skeleton className="h-[16px] w-full" />
+                <Skeleton className="h-[16px] w-[80%]" />
               </div>
             ) : tips.length > 0 ? (
-              <ul className="m-0 mt-[12px] p-0 list-none flex flex-col gap-[10px]">
-                {tips.map((text, i) => (
-                  <li key={i} className="flex gap-[10px] font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.45] text-[#3A343C]">
-                    <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#141016] pt-[2px]">0{i + 1}</span>
-                    {text}
+              <ul className="m-0 mt-[14px] p-0 list-none flex flex-col gap-[14px]">
+                {tips.slice(0, 2).map((text, i) => (
+                  <li key={i} className="flex gap-[14px] items-start">
+                    <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.06em] text-[#C4BEC8] pt-[3px] flex-none w-[16px]">
+                      0{i + 1}
+                    </span>
+                    <span className="font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.65] text-[#3A343C]">{text}</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-[12px] font-[family-name:var(--font-grotesk)] text-[13px] text-[#9A9298]">
+              <p className="mt-[12px] m-0 font-[family-name:var(--font-grotesk)] text-[13px] text-[#9A9298]">
                 {t.notesNone}
               </p>
             )}
           </div>
 
+          {/* Color picks */}
           {!isLoading && colorRecs.length > 0 && (
-            <div className="mt-[18px]">
-              <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em] uppercase text-[#9A9298]">{t.colorPicks}</span>
-              <ul className="m-0 mt-[12px] p-0 list-none flex flex-col gap-[10px]">
+            <div className="mt-[24px]">
+              <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298]">{t.colorPicks}</span>
+              <ul className="m-0 mt-[14px] p-0 list-none flex flex-col gap-[12px]">
                 {colorRecs.map((text, i) => (
-                  <li key={i} className="flex gap-[10px] font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.45] text-[#3A343C]">
-                    <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#9A9298] pt-[2px]">→</span>
-                    {text}
+                  <li key={i} className="flex gap-[12px] items-start">
+                    <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#C4BEC8] pt-[3px] flex-none">→</span>
+                    <span className="font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.65] text-[#3A343C]">{text}</span>
                   </li>
                 ))}
               </ul>
@@ -493,23 +518,23 @@ export function ResultsScreen() {
           {report ? (
             <button
               onClick={() => setBuyOpen(true)}
-              className="w-full flex items-center gap-[14px] p-[18px] rounded-[18px] bg-[#141016] border-none cursor-pointer text-left"
+              className="w-full flex items-center gap-[16px] px-[20px] py-[20px] rounded-[20px] bg-[#141016] border-none cursor-pointer text-left"
             >
               <div
-                className="w-[48px] h-[48px] flex-none rounded-full flex items-center justify-center text-[22px] text-[#141016]"
+                className="w-[44px] h-[44px] flex-none rounded-full flex items-center justify-center text-[18px] font-semibold text-[#141016]"
                 style={{ background: report.worth_buying.verdict ? "var(--lime)" : "#9A9298" }}
               >
                 {report.worth_buying.verdict ? "✓" : "×"}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-[family-name:var(--font-bodoni)] font-semibold text-[24px] leading-none text-white">
+                <div className="font-[family-name:var(--font-bodoni)] font-semibold text-[26px] leading-[1] text-white tracking-[-0.01em]">
                   {report.worth_buying.label}
                 </div>
-                <div className="font-[family-name:var(--font-grotesk)] text-[13px] text-[rgba(255,255,255,0.5)] mt-[3px]">
-                  {t.tapDetails}
+                <div className="font-[family-name:var(--font-grotesk)] text-[12px] text-[rgba(255,255,255,0.38)] mt-[5px] leading-[1.5] truncate">
+                  {report.worth_buying.reasoning}
                 </div>
               </div>
-              <span className="font-[family-name:var(--font-grotesk)] text-[18px] text-[rgba(255,255,255,0.3)]">›</span>
+              <span className="font-[family-name:var(--font-grotesk)] text-[18px] text-[rgba(255,255,255,0.25)] flex-none">›</span>
             </button>
           ) : (
             <div className="flex items-center gap-[14px] p-[18px] rounded-[18px] bg-[#F2EEEC]">
