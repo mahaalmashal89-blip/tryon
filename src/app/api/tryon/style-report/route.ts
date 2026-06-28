@@ -274,7 +274,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { result_image_url?: unknown; garment_types?: unknown };
+  let body: { result_image_url?: unknown; garment_types?: unknown; language?: unknown };
   try {
     body = await req.json();
   } catch {

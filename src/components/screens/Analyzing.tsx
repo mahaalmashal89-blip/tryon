@@ -150,7 +150,7 @@ export function AnalyzingScreen() {
           }
 
           if (statusData.status === "completed") {
-            resultUrl = statusData.output?.[0] as string ?? "";
+            resultUrl = (statusData.output as string[])?.[0] ?? "";
             if (!resultUrl) throw new Error("FASHN returned no output image.");
             break;
           }
