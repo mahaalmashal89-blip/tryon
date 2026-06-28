@@ -35,6 +35,13 @@ const StyleReportSchema = z.object({
     style_suitability: ScoreInt,
   }),
   score_reasoning: z.string(),
+  score_notes: z.object({
+    color_harmony:     z.string(),
+    outfit_cohesion:   z.string(),
+    layering:          z.string(),
+    visual_balance:    z.string(),
+    style_suitability: z.string(),
+  }).optional(),
   color_match: z.object({
     rating:                  z.string(),
     palette_type:            z.string(),
@@ -199,6 +206,7 @@ OUTPUT RULES
 - "outfit_cohesion.detail": max 15 words on how well the pieces work together
 - "score_reasoning": max 20 words — plain explanation of the score, honest about weaknesses
 - "style_category": one short label — "Casual", "Smart Casual", "Formal", "Evening", "Streetwear", "Business", etc.
+- "score_notes": one short honest sentence per criterion explaining WHY that score was given — max 12 words each. If points were lost, say why specifically.
 
 Return ONLY a JSON object with exactly this structure. Use these exact field names:
 
@@ -214,6 +222,13 @@ Return ONLY a JSON object with exactly this structure. Use these exact field nam
     "style_suitability": 14
   },
   "score_reasoning": "Good colour harmony and cohesion, but layering feels slightly heavy.",
+  "score_notes": {
+    "color_harmony": "Brown and cream are a natural pairing with no tension.",
+    "outfit_cohesion": "Both pieces share the same relaxed-elegant aesthetic.",
+    "layering": "The blazer feels slightly heavy over the lightweight skirt.",
+    "visual_balance": "The long skirt balances the structured blazer well.",
+    "style_suitability": "The look achieves smart casual but lacks a clear focal point."
+  },
   "color_match": {
     "rating": "Good",
     "palette_type": "warm earth tones",
@@ -294,6 +309,14 @@ export async function POST(req: NextRequest) {
     .slice(0, 8)
     .join(", ");
 
+  const language = typeof body.language === "string" && body.language === "ar" ? "ar" : "en";
+
+  const ARABIC_INSTRUCTION = `
+
+LANGUAGE REQUIREMENT: Write ALL text values in Arabic (Modern Standard Arabic — simple, clear, everyday language that non-native speakers can understand). JSON key names must stay in English. Every string value in the JSON must be in Arabic. Do not mix languages within a value.`;
+
+  const systemPrompt = SYSTEM_PROMPT + (language === "ar" ? ARABIC_INSTRUCTION : "");
+
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "Style analysis is not configured." }, { status: 500 });
@@ -333,7 +356,7 @@ export async function POST(req: NextRequest) {
           seed: 42,
           response_format: { type: "json_object" },
           messages: [
-            { role: "system", content: SYSTEM_PROMPT },
+            { role: "system", content: systemPrompt },
             {
               role: "user",
               content: [

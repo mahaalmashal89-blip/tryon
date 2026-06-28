@@ -42,6 +42,13 @@ export interface StyleReport {
     style_suitability: number;
   };
   score_reasoning: string;
+  score_notes?: {
+    color_harmony:     string;
+    outfit_cohesion:   string;
+    layering:          string;
+    visual_balance:    string;
+    style_suitability: string;
+  };
   color_match: {
     rating:                   string;
     palette_type:             string;
