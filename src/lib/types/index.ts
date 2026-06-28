@@ -30,6 +30,38 @@ export interface MeasureField {
   unit: string;
 }
 
+export interface StyleReport {
+  confidence: "high" | "medium" | "low";
+  confidence_reason: string | null;
+  score: number;
+  score_breakdown: {
+    color_harmony:     number;
+    outfit_cohesion:   number;
+    layering:          number;
+    visual_balance:    number;
+    style_suitability: number;
+  };
+  score_reasoning: string;
+  color_match: {
+    rating:           string;
+    palette_type:     string;
+    seasonal_palette: string | null;
+    detail:           string;
+  };
+  outfit_cohesion: {
+    rating:               string;
+    pieces_work_together: boolean;
+    detail:               string;
+  };
+  style_category: string;
+  styling_tips: string[];
+  worth_buying: {
+    verdict:   boolean;
+    label:     string;
+    reasoning: string;
+  };
+}
+
 export const CLOTHING_TYPES = [
   "Jacket",
   "Top / Shirt",

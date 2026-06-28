@@ -18,7 +18,9 @@ export type SecurityEvent =
   | "UNAUTHORIZED_POLL"      // authenticated user polled a prediction they don't own
   | "DB_ERROR"               // internal DB write failed (not a user error)
   | "FASHN_API_ERROR"        // upstream FASHN API returned a non-2xx response
-  | "INVALID_PROMPT";        // prompt field failed length or type validation
+  | "INVALID_PROMPT"         // prompt field failed length or type validation
+  | "SSRF_BLOCKED"           // image URL hostname not in allowlist
+  | "STYLE_REPORT_ERROR";    // Claude style analysis failed or timed out
 
 export interface SecurityLogEntry {
   ts: string;            // ISO-8601 UTC timestamp
