@@ -7,7 +7,7 @@ const FASHN_API = "https://api.fashn.ai/v1";
 const FASHN_MODEL_V16  = "tryon-v1.6";
 const FASHN_MODEL_MAX  = "tryon-max";
 const VALID_CATEGORIES = new Set(["tops", "bottoms", "one-pieces", "auto"]);
-const MAX_PROMPT_CHARS = 500;
+const MAX_PROMPT_CHARS = 800;
 
 // Server-side hard cap: 10 MB binary ≈ 13.4 MB base64. Applies to data URLs only;
 // product URL strings are short and don't need this check.
