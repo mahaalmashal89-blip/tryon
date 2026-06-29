@@ -102,17 +102,20 @@ export interface Database {
           result_image_url: string | null;
           created_at: string;
           expires_at: string;
+          style_report: Json | null;
         };
         Insert: {
           user_id: string;
           garments?: Json;
           result_image_url?: string | null;
           expires_at?: string;
+          style_report?: Json | null;
         };
         Update: {
           garments?: Json;
           result_image_url?: string | null;
           expires_at?: string;
+          style_report?: Json | null;
         };
         Relationships: [];
       };

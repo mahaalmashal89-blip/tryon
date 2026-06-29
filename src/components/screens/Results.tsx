@@ -35,6 +35,7 @@ const T = {
     generate:       "Generate again",
     download:       "↓ Download",
     save:           "Save for 30 days",
+    saveWaiting:    "Generating report…",
     saving:         "Saving…",
     saved:          "✓ Saved 30 days",
     downloading:    "Downloading…",
@@ -75,6 +76,7 @@ const T = {
     generate:       "توليد مجدداً",
     download:       "↓ تنزيل",
     save:           "حفظ لمدة ٣٠ يوماً",
+    saveWaiting:    "جارٍ توليد التقرير…",
     saving:         "جارٍ الحفظ…",
     saved:          "✓ تم الحفظ",
     downloading:    "جارٍ التنزيل…",
@@ -218,7 +220,9 @@ export function ResultsScreen() {
     if (!resultUrl || saved || saving) return;
     setSaving(true);
     try {
-      await saveTryonSession(tryonSession.getGarments(), resultUrl);
+      // Pass the full DualReport so it is persisted with the session.
+      // If report failed (dualReport is null), save without it — graceful degradation.
+      await saveTryonSession(tryonSession.getGarments(), resultUrl, dualReport);
       setSaved(true);
     } finally {
       setSaving(false);
@@ -559,11 +563,11 @@ export function ResultsScreen() {
           </button>
           <button
             onClick={handleSaveLater}
-            disabled={!resultUrl || saved || saving}
+            disabled={!resultUrl || saved || saving || isLoading}
             className="flex-1 py-[16px] border border-[rgba(20,16,22,0.14)] rounded-full bg-white font-[family-name:var(--font-grotesk)] font-medium text-[14px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             style={{ color: saved ? "#6B6470" : "#141016" }}
           >
-            {saving ? t.saving : saved ? t.saved : t.save}
+            {isLoading ? t.saveWaiting : saving ? t.saving : saved ? t.saved : t.save}
           </button>
         </div>
 
