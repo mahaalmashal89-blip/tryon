@@ -86,62 +86,98 @@ const CONNECTED_FULLBODY = new Set(["Dress", "One Piece", "One Set"]);
 // ── Intent prompts ────────────────────────────────────────────────────────────
 //
 // The user-facing category is an intent signal, not a raw FASHN parameter.
-// These prompts translate that intent into explicit model instructions so
-// tryon-max understands what to apply, what to preserve, and what not to invent.
+// Each prompt has TWO explicit paragraphs:
 //
-// Rules that apply to every prompt:
-//   1. State WHAT the product image contains.
-//   2. State WHERE it should be applied (upper / lower / full body).
-//   3. State WHAT must be preserved elsewhere on the body.
-//   4. State WHAT the model must NOT do (invent, replace, truncate).
+//   § EXTRACT — what to take from the product image, and what to IGNORE in it.
+//               Product images often show a full outfit on a model (e.g. jacket
+//               + trousers, or top + skirt). The model must know to extract only
+//               the selected garment and discard everything else in the image.
+//
+//   § APPLY   — where to put the extracted garment on the wearer's body, and
+//               what to preserve untouched elsewhere on the wearer.
+//
+// Without the EXTRACT paragraph the model can apply unselected garments that
+// are visually prominent in the product image (e.g. pants from a jacket photo).
 //
 const CATEGORY_PROMPTS: Record<string, string> = {
   "One Set":
-    "This product image shows a complete coordinated two-piece outfit. " +
-    "It includes both an upper garment and a matching lower garment. " +
-    "Apply the entire outfit exactly as it appears in the product image — top and bottom together. " +
-    "Do not apply only the upper garment. " +
-    "Do not invent, generate, or substitute a different lower garment. " +
-    "The lower garment in the product image must appear in the result. " +
-    "Treat the product image as one complete outfit and preserve both pieces faithfully.",
+    // EXTRACT — the product image IS the full outfit; apply everything in it.
+    "This product image shows a complete coordinated two-piece outfit — it includes " +
+    "both an upper garment and a matching lower garment. " +
+    "Extract and apply the entire outfit exactly as shown. " +
+    "Do not discard or ignore either piece. " +
+    // APPLY — full-body replacement; nothing on the wearer's body is preserved.
+    "Apply both the upper and lower garments to the wearer. " +
+    "Do not apply only the top and leave the lower body unchanged. " +
+    "Do not invent or substitute a different lower garment. " +
+    "The lower garment from the product image must appear in the result.",
 
   "Dress":
-    "This product image shows a single full-body garment. " +
-    "Apply it from neckline to hem exactly as shown. " +
-    "Preserve the garment's full silhouette and length. " +
-    "Do not truncate, shorten, or alter the lower portion.",
+    // EXTRACT — single full-body piece; no other garments to discard.
+    "This product image shows a single full-body dress. " +
+    "Extract the dress exactly as shown from neckline to hem. " +
+    // APPLY — full-body replacement; preserve garment length completely.
+    "Apply it to the wearer from top to bottom. " +
+    "Do not truncate, shorten, or alter the lower portion of the dress.",
 
   "One Piece":
-    "This product image shows a single full-body garment. " +
-    "Apply it from neckline to hem exactly as shown. " +
-    "Preserve the garment's full silhouette and length. " +
+    // EXTRACT — single full-body piece; no other garments to discard.
+    "This product image shows a single full-body one-piece garment. " +
+    "Extract it exactly as shown from neckline to hem. " +
+    // APPLY — full-body replacement; preserve garment length completely.
+    "Apply it to the wearer from top to bottom. " +
     "Do not truncate, shorten, or alter the lower portion.",
 
   "Top / Shirt":
-    "Apply only the upper garment shown in the product image. " +
-    "Preserve all existing clothing on the lower body exactly as-is. " +
-    "Do not change, replace, or remove the lower garment.",
+    // EXTRACT — only the top; discard any lower garment visible in the image.
+    "The selected item is the top or shirt in this product image. " +
+    "Extract ONLY the top from this image. " +
+    "The product image may also show trousers, a skirt, or other lower garments — " +
+    "ignore them completely. Do not apply any lower garment from this product image. " +
+    // APPLY — upper body only; wearer's lower body is preserved exactly.
+    "Apply only the extracted top to the upper body of the wearer. " +
+    "Preserve all existing clothing on the wearer's lower body exactly as-is.",
 
   "Skirt":
-    "Apply only the skirt shown in the product image to the lower body. " +
-    "Preserve all existing clothing on the upper body exactly as-is. " +
-    "Do not change, replace, or remove the top or any upper-body garment.",
+    // EXTRACT — only the skirt; discard any upper garment visible in the image.
+    "The selected item is the skirt in this product image. " +
+    "Extract ONLY the skirt from this image. " +
+    "The product image may also show a top, blouse, jacket, or other upper garments — " +
+    "ignore them completely. Do not apply any upper garment from this product image. " +
+    // APPLY — lower body only; wearer's upper body is preserved exactly.
+    "Apply only the extracted skirt to the lower body of the wearer. " +
+    "Preserve all existing clothing on the wearer's upper body exactly as-is.",
 
   "Pants":
-    "Apply only the trousers shown in the product image to the lower body. " +
-    "Preserve all existing clothing on the upper body exactly as-is. " +
-    "Do not change, replace, or remove the top or any upper-body garment.",
+    // EXTRACT — only the trousers; discard any upper garment visible in the image.
+    "The selected item is the trousers in this product image. " +
+    "Extract ONLY the trousers from this image. " +
+    "The product image may also show a top, shirt, jacket, or other upper garments — " +
+    "ignore them completely. Do not apply any upper garment from this product image. " +
+    // APPLY — lower body only; wearer's upper body is preserved exactly.
+    "Apply only the extracted trousers to the lower body of the wearer. " +
+    "Preserve all existing clothing on the wearer's upper body exactly as-is.",
 
   "Jacket":
-    "Add the jacket shown in the product image as an outer layer worn over the existing outfit. " +
-    "Preserve everything underneath exactly as-is — the top, skirt, trousers, and any visible clothing. " +
-    "Do not replace, remove, or redesign any garment underneath. " +
-    "Only add the jacket as the outermost layer.",
+    // EXTRACT — only the jacket; discard any other garments visible in the image.
+    "The selected item is the jacket or outerwear in this product image. " +
+    "Extract ONLY the jacket from this image. " +
+    "The product image may also show trousers, a skirt, a top, or other garments — " +
+    "ignore them completely. Do not apply any non-jacket garment from this product image. " +
+    // APPLY — outer layer only; everything on the wearer is preserved underneath.
+    "Add only the extracted jacket as an outer layer over the wearer's existing outfit. " +
+    "Preserve everything the wearer is already wearing exactly as-is — " +
+    "the top, skirt, trousers, and any visible clothing underneath. " +
+    "Do not replace, remove, or redesign any garment already on the wearer.",
 
   "Other":
-    "Add the garment shown in the product image as an outer layer over the existing outfit. " +
-    "Preserve all existing clothing underneath exactly as-is. " +
-    "Do not replace or remove any garment that is already visible.",
+    // EXTRACT — only the selected outer garment; discard other visible garments.
+    "The selected item is the outer garment in this product image. " +
+    "Extract ONLY that outer garment from this image. " +
+    "The product image may also show other garments — ignore them. " +
+    // APPLY — outer layer only; everything on the wearer is preserved.
+    "Add only the extracted garment as an outer layer over the wearer's existing outfit. " +
+    "Preserve all existing clothing on the wearer exactly as-is.",
 };
 
 export function getCategoryPrompt(type: string): string | undefined {
