@@ -220,7 +220,7 @@ Help the user spend their money wisely.
   "skip"     = not recommended — poor fit for the look, clashing colours, or too limited
 "worth_buying.label":
   EN: exactly one of — "Worth it", "Maybe", "Skip it"
-  AR: exactly one of — "يستاهل", "يمكن", "ما أنصح"
+  AR: exactly one of — "يستاهل", "يمكن", "ما يستاهل"
 "worth_buying.reasoning": 1–2 sentences explaining WHY, referencing the specific outfit.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
