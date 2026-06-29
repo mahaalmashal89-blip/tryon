@@ -110,6 +110,12 @@ const CONFIDENCE_STYLES: Record<StyleReport["confidence"], { color: string }> = 
   low:    { color: "#9A7070" },
 };
 
+const VERDICT_DISPLAY: Record<StyleReport["worth_buying"]["verdict"], { bg: string; icon: string }> = {
+  worth_it: { bg: "var(--lime)", icon: "✓" },
+  maybe:    { bg: "var(--lav)",  icon: "~" },
+  skip:     { bg: "#9A9298",    icon: "×" },
+};
+
 function ConfidenceBadge({ report, loading, lang }: { report: StyleReport | null; loading: boolean; lang: Language }) {
   if (loading || !report) return null;
   const { color } = CONFIDENCE_STYLES[report.confidence];
@@ -526,9 +532,9 @@ export function ResultsScreen() {
             >
               <div
                 className="w-[44px] h-[44px] flex-none rounded-full flex items-center justify-center text-[18px] font-semibold text-[#141016]"
-                style={{ background: report.worth_buying.verdict ? "var(--lime)" : "#9A9298" }}
+                style={{ background: VERDICT_DISPLAY[report.worth_buying.verdict]?.bg ?? "#9A9298" }}
               >
-                {report.worth_buying.verdict ? "✓" : "×"}
+                {VERDICT_DISPLAY[report.worth_buying.verdict]?.icon ?? "×"}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-[family-name:var(--font-bodoni)] font-semibold text-[26px] leading-[1] text-white tracking-[-0.01em]">
@@ -667,9 +673,9 @@ export function ResultsScreen() {
           <div className="flex items-center gap-[14px] p-[18px] rounded-[18px] bg-[#141016]">
             <div
               className="w-[48px] h-[48px] flex-none rounded-full flex items-center justify-center text-[22px] text-[#141016]"
-              style={{ background: report.worth_buying.verdict ? "var(--lime)" : "#9A9298" }}
+              style={{ background: VERDICT_DISPLAY[report.worth_buying.verdict]?.bg ?? "#9A9298" }}
             >
-              {report.worth_buying.verdict ? "✓" : "×"}
+              {VERDICT_DISPLAY[report.worth_buying.verdict]?.icon ?? "×"}
             </div>
             <div className="font-[family-name:var(--font-bodoni)] font-semibold text-[28px] leading-none text-white">
               {report.worth_buying.label}

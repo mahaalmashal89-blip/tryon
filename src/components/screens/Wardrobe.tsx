@@ -39,12 +39,19 @@ const T = {
 };
 
 const VERDICT_STYLES: Record<string, { bg: string; fg: string }> = {
-  BUY:  { bg: "var(--lime)", fg: "#141016" },
-  SKIP: { bg: "#F2EEEC",    fg: "#9A9298" },
+  BUY:   { bg: "var(--lime)",                                      fg: "#141016" },
+  MAYBE: { bg: "color-mix(in srgb, var(--lav) 45%, #fff)",         fg: "#141016" },
+  SKIP:  { bg: "#F2EEEC",                                          fg: "#9A9298" },
 };
 
-function verdictFromReport(report: StyleReport): "BUY" | "SKIP" {
-  return report.worth_buying.verdict ? "BUY" : "SKIP";
+const VERDICT_MAP: Record<string, "BUY" | "MAYBE" | "SKIP"> = {
+  worth_it: "BUY",
+  maybe:    "MAYBE",
+  skip:     "SKIP",
+};
+
+function verdictFromReport(report: StyleReport): "BUY" | "MAYBE" | "SKIP" {
+  return VERDICT_MAP[report.worth_buying.verdict] ?? "MAYBE";
 }
 
 function daysLeft(expiresAt: string): number {

@@ -73,7 +73,7 @@ export interface StyleReport {
   styling_tips: string[];
   color_recommendations: string[];
   worth_buying: {
-    verdict:   boolean;
+    verdict:   "worth_it" | "maybe" | "skip";
     label:     string;
     reasoning: string;
   };

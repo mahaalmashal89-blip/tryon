@@ -52,7 +52,7 @@ const StyleReportSchema = z.object({
   styling_tips: z.array(z.string()).min(1).max(3),
   color_recommendations: z.array(z.string()).min(1).max(3),
   worth_buying: z.object({
-    verdict:   BoolCoerce,
+    verdict:   z.enum(["worth_it", "maybe", "skip"]),
     label:     z.string(),
     reasoning: z.string(),
   }),
@@ -214,10 +214,13 @@ STEP 6 — SHOPPING VERDICT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Help the user spend their money wisely.
-"worth_buying.verdict": true = worth buying, false = skip or maybe
+"worth_buying.verdict": exactly one of these three string values:
+  "worth_it" = the item/outfit is worth buying — clearly works, versatile, or flattering
+  "maybe"    = has good points but real concerns exist — depends on the user's wardrobe or needs
+  "skip"     = not recommended — poor fit for the look, clashing colours, or too limited
 "worth_buying.label":
   EN: exactly one of — "Worth it", "Maybe", "Skip it"
-  AR: exactly one of — "يستاهل", "ممكن", "ما يستاهل"
+  AR: exactly one of — "يستاهل", "يمكن", "ما أنصح"
 "worth_buying.reasoning": 1–2 sentences explaining WHY, referencing the specific outfit.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -283,7 +286,7 @@ Return ONLY a JSON object with exactly this structure. No markdown code blocks.
       "Deep camel looks better than pure white for this colour palette."
     ],
     "worth_buying": {
-      "verdict": true,
+      "verdict": "worth_it",
       "label": "Worth it",
       "reasoning": "This jacket is versatile — it works with trousers and skirts."
     }
@@ -332,7 +335,7 @@ Return ONLY a JSON object with exactly this structure. No markdown code blocks.
       "الكاميل الغامق أحسن من الأبيض الكامل لهذي الإطلالة."
     ],
     "worth_buying": {
-      "verdict": true,
+      "verdict": "worth_it",
       "label": "يستاهل",
       "reasoning": "هذي الجاكيت مناسبة — تنفع مع بناطيل وتنانير وراحة."
     }
