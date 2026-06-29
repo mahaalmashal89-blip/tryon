@@ -83,9 +83,74 @@ export function sortByLayer<T extends { type: ClothingType | string }>(items: T[
 // when it is present, and it always runs as a single tryon-max call.
 const CONNECTED_FULLBODY = new Set(["Dress", "One Piece", "One Set"]);
 
-// Prompt for the jacket step on tryon-max. It tells the model to treat the
-// jacket as an additive outer layer and to leave everything underneath — the
-// lower garment especially — completely untouched.
+// ── Intent prompts ────────────────────────────────────────────────────────────
+//
+// The user-facing category is an intent signal, not a raw FASHN parameter.
+// These prompts translate that intent into explicit model instructions so
+// tryon-max understands what to apply, what to preserve, and what not to invent.
+//
+// Rules that apply to every prompt:
+//   1. State WHAT the product image contains.
+//   2. State WHERE it should be applied (upper / lower / full body).
+//   3. State WHAT must be preserved elsewhere on the body.
+//   4. State WHAT the model must NOT do (invent, replace, truncate).
+//
+const CATEGORY_PROMPTS: Record<string, string> = {
+  "One Set":
+    "This product image shows a complete coordinated two-piece outfit. " +
+    "It includes both an upper garment and a matching lower garment. " +
+    "Apply the entire outfit exactly as it appears in the product image — top and bottom together. " +
+    "Do not apply only the upper garment. " +
+    "Do not invent, generate, or substitute a different lower garment. " +
+    "The lower garment in the product image must appear in the result. " +
+    "Treat the product image as one complete outfit and preserve both pieces faithfully.",
+
+  "Dress":
+    "This product image shows a single full-body garment. " +
+    "Apply it from neckline to hem exactly as shown. " +
+    "Preserve the garment's full silhouette and length. " +
+    "Do not truncate, shorten, or alter the lower portion.",
+
+  "One Piece":
+    "This product image shows a single full-body garment. " +
+    "Apply it from neckline to hem exactly as shown. " +
+    "Preserve the garment's full silhouette and length. " +
+    "Do not truncate, shorten, or alter the lower portion.",
+
+  "Top / Shirt":
+    "Apply only the upper garment shown in the product image. " +
+    "Preserve all existing clothing on the lower body exactly as-is. " +
+    "Do not change, replace, or remove the lower garment.",
+
+  "Skirt":
+    "Apply only the skirt shown in the product image to the lower body. " +
+    "Preserve all existing clothing on the upper body exactly as-is. " +
+    "Do not change, replace, or remove the top or any upper-body garment.",
+
+  "Pants":
+    "Apply only the trousers shown in the product image to the lower body. " +
+    "Preserve all existing clothing on the upper body exactly as-is. " +
+    "Do not change, replace, or remove the top or any upper-body garment.",
+
+  "Jacket":
+    "Add the jacket shown in the product image as an outer layer worn over the existing outfit. " +
+    "Preserve everything underneath exactly as-is — the top, skirt, trousers, and any visible clothing. " +
+    "Do not replace, remove, or redesign any garment underneath. " +
+    "Only add the jacket as the outermost layer.",
+
+  "Other":
+    "Add the garment shown in the product image as an outer layer over the existing outfit. " +
+    "Preserve all existing clothing underneath exactly as-is. " +
+    "Do not replace or remove any garment that is already visible.",
+};
+
+export function getCategoryPrompt(type: string): string | undefined {
+  return CATEGORY_PROMPTS[type];
+}
+
+// Kept for Case 5b only (Jacket over a connected full-body garment). This
+// wording has been empirically tested in that specific chaining context and
+// must not be replaced with the general Jacket prompt above without re-testing.
 export const OUTER_LAYER_PROMPT =
   "Add this jacket as an open outer layer worn over the existing outfit. " +
   "Keep everything underneath exactly as-is: do not change, replace, redesign, " +
@@ -96,30 +161,28 @@ export const OUTER_LAYER_PROMPT =
 export interface TryonStep<T> {
   garment: T;
   useMax: boolean;            // true → tryon-max, false → tryon-v1.6
-  category?: FashnCategory;   // always present; sent to both models
-  prompt?: string;            // present only for Case 5 jacket step (tryon-max + prompt)
+  category?: FashnCategory;   // sent to tryon-v1.6; also forwarded to tryon-max when present
+  prompt?: string;            // intent prompt for tryon-max (all cases except Case 5a)
 }
 
 /**
  * Build the ordered processing plan for an outfit.
  *
- * Three rules, applied in order:
+ * Routing rules, applied in order:
  *
- * 1. Case 5 — connected full-body step when a jacket is also present:
- *    Dress / One Piece step → tryon-v1.6 (unchanged, preserves neckline
- *    before the jacket is layered on top).
+ * Case 5a — connected full-body step when a jacket is also selected:
+ *   Dress / One Piece → tryon-v1.6 + category (no prompt).
+ *   Preserves neckline/construction before the jacket is layered in the next step.
  *
- * 2. Case 5 — jacket step over a connected full-body garment:
- *    → tryon-max + OUTER_LAYER_PROMPT (experimental, unchanged).
+ * Case 5b — jacket step over a connected full-body garment:
+ *   → tryon-max + OUTER_LAYER_PROMPT (empirically tested, unchanged).
  *
- * 3. Everything else — single garments, Top+Bottom, Jacket+Skirt/Pants:
- *    → tryon-max with category, no prompt.
+ * One Set — single tryon-max call with full-outfit intent prompt.
+ *   Never split into two steps; never downgraded to v1.6.
  *
- *    Git history shows the entire pipeline ran tryon-max during the period
- *    (commits 95cbec4→d873473) when garment fidelity was highest. The
- *    migration to tryon-v1.6 restored category-based targeting but may
- *    have reduced per-garment fidelity. This hybrid routes non-Case-5
- *    garments back to tryon-max while keeping Case 5 unchanged.
+ * All other cases (Cases 1–4) — tryon-max + category + intent prompt.
+ *   The intent prompt translates the user's category selection into explicit
+ *   model instructions: what to apply, what to preserve, what not to invent.
  */
 export function buildTryonPlan<T extends { type: ClothingType | string }>(
   items: T[]
@@ -131,28 +194,35 @@ export function buildTryonPlan<T extends { type: ClothingType | string }>(
   return sorted.map((garment) => {
     const isOuterwear = OUTERWEAR.has(garment.type);
 
-    // One Set: a coordinated outfit (e.g. jacket+skirt) in a single product image.
-    // Always a single tryon-max call — never split and never downgraded to v1.6.
+    // One Set: a coordinated outfit in a single product image.
+    // Single tryon-max call with a full-outfit intent prompt so the model
+    // knows to apply both upper and lower garments — not just the top.
     if (garment.type === "One Set") {
-      return { garment, useMax: true };
+      return { garment, useMax: true, prompt: getCategoryPrompt("One Set") };
     }
 
     // Case 5a: the Dress/One Piece step when a Jacket is also selected.
-    // Keep v1.6 here — it correctly applies the one-piece before the jacket
-    // is layered on top via tryon-max in the next step.
+    // Keep v1.6 + category — it correctly applies the one-piece before the
+    // jacket is layered on top via tryon-max in the next step.
     if (!isOuterwear && hasConnectedFullBody && hasOuterwear) {
       return { garment, useMax: false, category: getFashnCategory(garment.type) };
     }
 
     // Case 5b: Jacket/Other over a connected full-body garment.
-    // tryon-max + preservation prompt — experimental, unchanged.
+    // tryon-max + OUTER_LAYER_PROMPT — empirically tested, unchanged.
     if (isOuterwear && hasConnectedFullBody) {
       return { garment, useMax: true, category: getFashnCategory(garment.type), prompt: OUTER_LAYER_PROMPT };
     }
 
-    // All other cases (Cases 1–4): tryon-max with category, no prompt.
-    // Matches the model used during the "good period" (95cbec4→d873473).
-    return { garment, useMax: true, category: getFashnCategory(garment.type) };
+    // All other cases (Cases 1–4): tryon-max + category + intent prompt.
+    // The prompt converts the user's category selection into explicit model
+    // instructions, reducing the chance the model invents or misapplies garments.
+    return {
+      garment,
+      useMax:   true,
+      category: getFashnCategory(garment.type),
+      prompt:   getCategoryPrompt(garment.type),
+    };
   });
 }
 
