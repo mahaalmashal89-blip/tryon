@@ -45,7 +45,19 @@ export function getFashnCategory(type: string): FashnCategory {
 }
 
 const OUTERWEAR = new Set(["Jacket", "Other"]);
-const BASE_REPLACEABLE = new Set(["Top / Shirt", "Pants", "Skirt"]);
+
+// Garments that are structurally redundant when a connected full-body garment
+// (Dress, One Piece, One Set) is present. "Redundant" means the user cannot
+// plausibly intend to wear both simultaneously:
+//   Dress + Skirt → nonsense; discard the Skirt.
+//   Dress + Pants → nonsense; discard the Pants.
+//
+// Top / Shirt is intentionally NOT listed here. A sweater or top layered
+// over a slip dress is a real and common outfit. If the user selected both
+// a Dress and a Top/Shirt, they mean to layer — the top should run as a
+// second step over the dress result. The LAYER_ORDER (Dress=0, Top/Shirt=1)
+// already guarantees the correct sequencing without any filtering.
+const BASE_REPLACEABLE = new Set(["Pants", "Skirt"]);
 
 /**
  * Sort garments into the order that produces correct FASHN API results:
@@ -53,15 +65,16 @@ const BASE_REPLACEABLE = new Set(["Top / Shirt", "Pants", "Skirt"]);
  *
  * See LAYER_ORDER for the empirical reasoning behind this sequence.
  *
- * If a Dress or One Piece is present it replaces the base outfit layer
- * (Top/Shirt, Pants, Skirt are discarded), but outerwear (Jacket, Other)
- * is still applied on top.
+ * If a Dress or One Piece is present, lower-body separates (Pants, Skirt)
+ * are discarded because they conflict with the full-body garment. Top/Shirt
+ * is kept — it can be intentionally layered over the dress (e.g. sweater
+ * over a slip dress). Outerwear (Jacket, Other) is always kept.
  */
 export function sortByLayer<T extends { type: ClothingType | string }>(items: T[]): T[] {
   const hasFullBody = items.some((i) => CONNECTED_FULLBODY.has(i.type));
 
   const filtered = hasFullBody
-    ? items.filter((i) => !BASE_REPLACEABLE.has(i.type))  // drop Top/Shirt, Pants, Skirt
+    ? items.filter((i) => !BASE_REPLACEABLE.has(i.type))  // drop Pants and Skirt only
     : items;
 
   return [...filtered].sort(
@@ -130,13 +143,17 @@ const CATEGORY_PROMPTS: Record<string, string> = {
 
   "Top / Shirt":
     // EXTRACT — only the top; discard any lower garment visible in the image.
-    "The selected item is the top or shirt in this product image. " +
-    "Extract ONLY the top from this image. " +
+    "The selected item is the top, shirt, or sweater in this product image. " +
+    "Extract ONLY the upper garment from this image. " +
     "The product image may also show trousers, a skirt, or other lower garments — " +
     "ignore them completely. Do not apply any lower garment from this product image. " +
     // APPLY — upper body only; wearer's lower body is preserved exactly.
+    // The wearer may already be wearing a dress or full-body garment.
+    // The top should layer over the upper portion of that garment, not replace it entirely.
     "Apply only the extracted top to the upper body of the wearer. " +
-    "Preserve all existing clothing on the wearer's lower body exactly as-is.",
+    "The wearer may be wearing a dress or full-body garment underneath. " +
+    "Preserve the lower half of any garment already on the wearer exactly as-is. " +
+    "Only the upper body region should change. Do not alter the lower body.",
 
   "Skirt":
     // EXTRACT — only the skirt; discard any upper garment visible in the image.
