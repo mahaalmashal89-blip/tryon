@@ -34,11 +34,14 @@ const StyleReportSchema = z.object({
     style_suitability: z.string(),
   }).optional(),
   color_match: z.object({
-    rating:                  z.string(),
-    palette_type:            z.string(),
-    seasonal_palette:        z.string().nullable(),
-    seasonal_palette_reason: z.string().nullable(),
-    detail:                  z.string(),
+    rating:       z.string(),
+    palette_type: z.string(),
+    detail:       z.string(),
+  }),
+  personal_color_analysis: z.object({
+    color_type:    z.string(),
+    reason:        z.string(),
+    outfit_advice: z.string(),
   }),
   outfit_cohesion: z.object({
     rating:               z.string(),
@@ -154,17 +157,36 @@ STEP 2 — SCORE THE OUTFIT HONESTLY (each criterion 0–20, total 0–100)
 Final score = sum of all five. Be honest. Not every outfit deserves 80+.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 3 — SEASONAL COLOUR THEORY
+STEP 3 — PERSONAL COLOR ANALYSIS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Seasonal palette identification is a key feature of this app. Use the 12-type system:
-Spring: Light Spring, True Spring, Warm Spring
-Summer: Light Summer, True Summer, Cool Summer
-Autumn: Soft Autumn, True Autumn, Warm Autumn, Deep Autumn
-Winter: Deep Winter, True Winter, Cool Winter
+Analyse the user's visible skin tone TOGETHER with the outfit colours in this specific photo.
+This is NOT a permanent season diagnosis. Always hedge your language.
 
-Only assign a palette if clearly confident from the outfit colours.
-If not confident, set seasonal_palette and seasonal_palette_reason to null.
+HEDGING RULE — start sentences with phrases like:
+"Based on this photo…" / "In this outfit…" / "Your skin appears…" / "This outfit suggests…"
+Never say: "You are a Warm Autumn." Use: "In this photo, your skin appears warm."
+
+Output three things for "personal_color_analysis":
+
+1. "color_type" — the most likely seasonal colour type based on what you see.
+   Only assign a type if you are confident.
+   Types: Warm Autumn, True Autumn, Soft Autumn, Deep Autumn, True Spring, Light Spring, Warm Spring,
+          Light Summer, True Summer, Cool Summer, Deep Winter, True Winter, Cool Winter
+   If not confident:
+     EN → "Could not determine confidently."
+     AR → "لا يمكن التحديد بثقة."
+   AR type equivalents: خريف دافئ, خريف أصيل, خريف ناعم, خريف عميق, ربيع أصيل, ربيع خفيف, ربيع دافئ,
+                        صيف خفيف, صيف أصيل, صيف بارد, شتاء عميق, شتاء أصيل, شتاء بارد
+
+2. "reason" — one sentence, max 20 words, starting with a hedged phrase.
+   EN: "Your skin appears warm and golden in this photo."
+   AR: "يبدو لونك دافئاً وذهبياً في هذه الصورة."
+
+3. "outfit_advice" — one sentence of specific advice about THIS outfit's colours against the user's skin.
+   Always reference the actual colours worn. Be honest.
+   EN: "The camel blazer complements your skin naturally." / "The cool grey looks slightly off against your warm skin."
+   AR: "الجاكيت الكاميل يكمل لون بشرتك بشكل طبيعي." / "الرمادي البارد لا يتناسب تماماً مع دفء بشرتك."
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 4 — COLOUR RECOMMENDATIONS
@@ -239,9 +261,12 @@ Return ONLY a JSON object with exactly this structure. No markdown code blocks.
     "color_match": {
       "rating": "Good",
       "palette_type": "warm earth tones",
-      "seasonal_palette": "Warm Autumn",
-      "seasonal_palette_reason": "Rich browns and cream suggest a warm Autumn palette.",
       "detail": "Brown and cream work well together without competing."
+    },
+    "personal_color_analysis": {
+      "color_type": "Warm Autumn",
+      "reason": "Your skin appears warm and golden in this photo.",
+      "outfit_advice": "The brown and cream palette complements your skin tone naturally."
     },
     "outfit_cohesion": {
       "rating": "Cohesive",
@@ -285,9 +310,12 @@ Return ONLY a JSON object with exactly this structure. No markdown code blocks.
     "color_match": {
       "rating": "جيد",
       "palette_type": "ألوان دافئة ترابية",
-      "seasonal_palette": "خريف دافئ",
-      "seasonal_palette_reason": "البني الغامق والكريمي يدلان على لوحة خريف دافئ.",
       "detail": "البني والكريمي متناسقين وما فيهم تنافر."
+    },
+    "personal_color_analysis": {
+      "color_type": "خريف دافئ",
+      "reason": "يبدو لونك دافئاً وذهبياً في هذه الصورة.",
+      "outfit_advice": "البني والكريمي يكملان لون بشرتك بشكل طبيعي."
     },
     "outfit_cohesion": {
       "rating": "متناسق",

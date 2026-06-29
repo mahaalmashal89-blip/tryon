@@ -55,11 +55,14 @@ export interface StyleReport {
     style_suitability: string;
   };
   color_match: {
-    rating:                   string;
-    palette_type:             string;
-    seasonal_palette:         string | null;
-    seasonal_palette_reason:  string | null;
-    detail:                   string;
+    rating:       string;
+    palette_type: string;
+    detail:       string;
+  };
+  personal_color_analysis: {
+    color_type:    string;
+    reason:        string;
+    outfit_advice: string;
   };
   outfit_cohesion: {
     rating:               string;

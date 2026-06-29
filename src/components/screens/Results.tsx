@@ -22,9 +22,11 @@ const T = {
     scoreSheet:     "Score Breakdown",
     colorMatch:     "Color Match",
     colorSheet:     "Color Analysis",
-    palette:        "Seasonal Palette",
-    paletteSheet:   "Seasonal Palette",
-    whyPalette:     "Why this palette",
+    palette:        "Personal Color Analysis",
+    paletteSheet:   "Personal Color Analysis",
+    colorTypeLabel: "Color Type",
+    colorWhy:       "Why",
+    outfitAdvice:   "Outfit Color Advice",
     bestColors:     "Color picks for next time",
     style:          "Style",
     tips:           "Styling Tips",
@@ -42,8 +44,6 @@ const T = {
     tipsNone:       "Tips unavailable — generate a new look to retry.",
     notesNone:      "Styling notes unavailable.",
     stylingNotes:   "Styling Notes",
-    noPalette:      "—",
-    confidenceLabel: "Confidence",
     scoreLabels: {
       color_harmony:     "Color Harmony",
       outfit_cohesion:   "Outfit Cohesion",
@@ -62,9 +62,11 @@ const T = {
     scoreSheet:     "تفصيل النقاط",
     colorMatch:     "تناسق الألوان",
     colorSheet:     "تحليل الألوان",
-    palette:        "لوحة الألوان الموسمية",
-    paletteSheet:   "لوحة الألوان الموسمية",
-    whyPalette:     "لماذا هذه اللوحة",
+    palette:        "تحليل لونك الشخصي",
+    paletteSheet:   "تحليل لونك الشخصي",
+    colorTypeLabel: "نوع اللون",
+    colorWhy:       "السبب",
+    outfitAdvice:   "نصيحة لإطلالتك",
     bestColors:     "الألوان المقترحة للمرة القادمة",
     style:          "الأسلوب",
     tips:           "نصائح التنسيق",
@@ -82,8 +84,6 @@ const T = {
     tipsNone:       "النصائح غير متاحة — جربي إطلالة جديدة.",
     notesNone:      "ملاحظات التنسيق غير متاحة.",
     stylingNotes:   "ملاحظات التنسيق",
-    noPalette:      "—",
-    confidenceLabel: "مستوى الثقة",
     scoreLabels: {
       color_harmony:     "تناسق الألوان",
       outfit_cohesion:   "تناسق القطع",
@@ -265,8 +265,7 @@ export function ResultsScreen() {
   const styleText       = report?.style_category ?? null;
   const tips            = report?.styling_tips ?? [];
   const colorRecs       = report?.color_recommendations ?? [];
-  const seasonalPalette = report?.color_match.seasonal_palette ?? null;
-  const seasonalReason  = report?.color_match.seasonal_palette_reason ?? null;
+  const personalColor = report?.personal_color_analysis ?? null;
 
   const verdictContent = (
     <>
@@ -304,7 +303,7 @@ export function ResultsScreen() {
               </div>
             </button>
 
-            {/* ── Seasonal Palette — tappable row ── */}
+            {/* ── Personal Color Analysis — tappable row ── */}
             <button
               onClick={() => report && setPaletteOpen(true)}
               disabled={!report}
@@ -320,9 +319,9 @@ export function ResultsScreen() {
                 ) : (
                   <>
                     <span className="font-[family-name:var(--font-bodoni)] text-[20px] text-[#141016]">
-                      {seasonalPalette ?? "—"}
+                      {personalColor?.color_type ?? "—"}
                     </span>
-                    {report && seasonalPalette && <Chevron />}
+                    {report && personalColor?.color_type && <Chevron />}
                   </>
                 )}
               </div>
@@ -450,7 +449,7 @@ export function ResultsScreen() {
             ) : (
               [
                 { label: t.colorMatch, val: report?.color_match.rating ?? "—", action: () => report && setColorOpen(true) },
-                { label: t.palette,    val: seasonalPalette ?? "—",             action: () => report && setPaletteOpen(true) },
+                { label: t.palette,    val: personalColor?.color_type ?? "—",    action: () => report && setPaletteOpen(true) },
                 { label: t.style,      val: report?.style_category ?? "—",      action: undefined },
               ].map(({ label, val, action }) => (
                 <button
@@ -636,41 +635,22 @@ export function ResultsScreen() {
 
   const paletteSheet = (
     <BottomSheet open={paletteOpen} onClose={() => setPaletteOpen(false)} title={t.paletteSheet} dir={dir}>
-      {report && (
+      {report && personalColor && (
         <div className="flex flex-col gap-[18px]">
           <div>
+            <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#9A9298] mb-[8px]">{t.colorTypeLabel}</div>
             <div className="font-[family-name:var(--font-bodoni)] text-[28px] text-[#141016] mb-[8px]">
-              {seasonalPalette ?? t.noPalette}
+              {personalColor.color_type}
             </div>
-            {seasonalReason && (
-              <p className="m-0 font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.6] text-[#3A343C]">{seasonalReason}</p>
-            )}
           </div>
           <div style={{ borderTop: "1px solid rgba(20,16,22,0.08)", paddingTop: "18px" }}>
-            <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#9A9298] mb-[10px]">{t.confidenceLabel}</div>
-            <div
-              className="inline-block px-[12px] py-[5px] rounded-full font-[family-name:var(--font-grotesk)] text-[13px] font-medium"
-              style={{ background: "#F2EEEC", color: CONFIDENCE_STYLES[report.confidence].color }}
-            >
-              {t.confidence[report.confidence]}
-            </div>
-            {report.confidence_reason && (
-              <p className="m-0 mt-[10px] font-[family-name:var(--font-grotesk)] text-[13px] text-[#9A9298] leading-[1.5]">{report.confidence_reason}</p>
-            )}
+            <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#9A9298] mb-[8px]">{t.colorWhy}</div>
+            <p className="m-0 font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.6] text-[#3A343C]">{personalColor.reason}</p>
           </div>
-          {colorRecs.length > 0 && (
-            <div style={{ borderTop: "1px solid rgba(20,16,22,0.08)", paddingTop: "18px" }}>
-              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#9A9298] mb-[12px]">{t.bestColors}</div>
-              <ul className="m-0 p-0 list-none flex flex-col gap-[12px]">
-                {colorRecs.map((text, i) => (
-                  <li key={i} className="flex gap-[10px] font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.5] text-[#3A343C]">
-                    <span className="text-[#9A9298]">→</span>
-                    {text}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <div style={{ borderTop: "1px solid rgba(20,16,22,0.08)", paddingTop: "18px" }}>
+            <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#9A9298] mb-[8px]">{t.outfitAdvice}</div>
+            <p className="m-0 font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.6] text-[#3A343C]">{personalColor.outfit_advice}</p>
+          </div>
         </div>
       )}
     </BottomSheet>
@@ -701,7 +681,15 @@ export function ResultsScreen() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <section className="min-h-full animate-fade" dir={dir}>
+    <section
+      className="min-h-full animate-fade"
+      dir={dir}
+      style={language === "ar" ? {
+        ["--font-bodoni" as string]: "var(--font-arabic-serif)",
+        ["--font-grotesk" as string]: "var(--font-arabic-sans)",
+        ["--font-mono" as string]: "var(--font-arabic-sans)",
+      } : undefined}
+    >
 
       {/* ── MOBILE layout ── */}
       <div className="flex flex-col md:hidden">
