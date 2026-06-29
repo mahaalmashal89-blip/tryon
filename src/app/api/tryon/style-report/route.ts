@@ -5,18 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { logSecurityEvent, newRequestId } from "@/lib/securityLogger";
 
 // ── Model ────────────────────────────────────────────────────────────────────
-// To switch models, set STYLE_REPORT_MODEL in .env.local — no other code changes needed:
-//   openai/gpt-4o               → GPT-4o via OpenRouter (default — best vision quality)
-//   openai/gpt-4o-mini          → faster and cheaper, slightly lower quality
-//   anthropic/claude-sonnet-4-6 → Claude Sonnet via OpenRouter
-//   google/gemini-flash-1.5     → Gemini Flash via OpenRouter
-//   meta-llama/llama-3.2-11b-vision-instruct:free → free tier for development
 const DEFAULT_MODEL = "openai/gpt-4o";
 
 // ── Output schema ─────────────────────────────────────────────────────────────
-// Use z.coerce.number() so string-typed numbers ("16") are accepted without
-// failing validation — GPT-4o occasionally returns JSON with number fields
-// as strings when no strict output mode is available.
 const ScoreInt = z.coerce.number().int().min(0).max(20);
 const BoolCoerce = z.union([
   z.boolean(),
@@ -64,19 +55,51 @@ const StyleReportSchema = z.object({
   }),
 });
 
+const DualReportSchema = z.object({
+  en: StyleReportSchema,
+  ar: StyleReportSchema,
+});
+
 // ── System prompt ─────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are a professional fashion stylist giving honest, useful advice. Your job is to help users make better fashion decisions — not to make them feel good about every outfit.
 
 HONESTY RULE
-Never flatter. If an outfit is unbalanced, poorly styled, or colour-clashing, say so directly but politely. Use specific language:
-- "This jacket is too heavy for this skirt."
-- "These colours compete with each other."
-- "This look does not create a polished silhouette."
+Never flatter. If an outfit is unbalanced, poorly styled, or colour-clashing, say so directly but politely.
 If an outfit is excellent, explain exactly why — do not just say "great look".
 Sound like a trusted professional, not a salesperson.
 
-LANGUAGE RULE
-Plain everyday English only. Short sentences. No fashion jargon. Write so that someone whose first language is not English can easily understand.
+PLAIN ENGLISH RULE (for the "en" version)
+Write like you are explaining to a friend who is not a fashion expert.
+Short sentences. Every word must be simple.
+NEVER use: silhouette, palette, monochrome, cohesion, sartorial, elongate, muted, hues, ensemble.
+USE INSTEAD:
+- "silhouette" → "shape of the outfit" or "how the outfit looks"
+- "monochrome" → "all one colour" or say the actual colour
+- "elongate" → "make the outfit look longer" or "make you look taller"
+- "cohesion" → "go together" or "work together"
+- "muted" → "soft" or say the colour name
+
+Good English examples:
+✓ "Black and white work well together."
+✓ "The jacket is too heavy for the skirt."
+✓ "Keep jewellery simple so the dress stands out."
+✓ "Pointed shoes will make the outfit look longer and cleaner."
+✓ "The pieces go together naturally."
+✗ "Monochromatic contrast creates visual interest."
+✗ "The silhouette lacks definition."
+✗ "Cohesive palette with muted earth hues."
+
+GULF ARABIC RULE (for the "ar" version)
+Write in friendly Gulf Arabic — the everyday language used in Kuwait, UAE, and Saudi Arabia.
+Sound like a stylist texting a Khaleeji friend. Warm, short, and direct.
+NOT formal Modern Standard Arabic. NOT stiff. NOT like a news article.
+
+Good Gulf Arabic examples:
+✓ "الأبيض والأسود متناسقين وواضحين."
+✓ "خللي الإكسسوارات بسيطة عشان الفستان يبرز."
+✓ "الحذاء المدبب يعطي الإطلالة طول وترتيب أكثر."
+✓ "هذي الجاكيت تنفع مع بناطيل وتنانير وراحة."
+✗ "يتسم هذا الزي بالتناسق اللوني والتكامل الجمالي." (too formal)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 1 — ASSESS YOUR CONFIDENCE FIRST
@@ -128,136 +151,165 @@ STEP 2 — SCORE THE OUTFIT HONESTLY (each criterion 0–20, total 0–100)
    8–12  = Style goal unclear or only partially achieved
    0–7   = Misses its intended style entirely
 
-Final score = sum of all five. Be honest. Not every outfit deserves 80+. Score what you actually see.
+Final score = sum of all five. Be honest. Not every outfit deserves 80+.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 3 — SEASONAL COLOUR THEORY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Seasonal palette identification is a key feature of this app. Be specific — use the 12-type system:
+Seasonal palette identification is a key feature of this app. Use the 12-type system:
+Spring: Light Spring, True Spring, Warm Spring
+Summer: Light Summer, True Summer, Cool Summer
+Autumn: Soft Autumn, True Autumn, Warm Autumn, Deep Autumn
+Winter: Deep Winter, True Winter, Cool Winter
 
-Spring types: Light Spring, True Spring, Warm Spring
-Summer types: Light Summer, True Summer, Cool Summer
-Autumn types: Soft Autumn, True Autumn, Warm Autumn, Deep Autumn
-Winter types: Deep Winter, True Winter, Cool Winter
-
-Only assign a palette if you are clearly confident from the outfit colours. Examples:
-- Rich warm browns, olives, terracotta → "Warm Autumn" or "True Autumn"
-- Dusty roses, soft greys, muted blues → "True Summer" or "Soft Autumn"
-- Bright clear colours, crisp white → "True Spring" or "True Winter"
-- Deep jewel tones, black → "Deep Winter" or "Deep Autumn"
-
-If not confident, set seasonal_palette to null and seasonal_palette_reason to null.
-If confident, set seasonal_palette_reason to a short plain-English explanation of why.
-Example: "Rich warm browns and terracotta suggest a Warm Autumn palette."
+Only assign a palette if clearly confident from the outfit colours.
+If not confident, set seasonal_palette and seasonal_palette_reason to null.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 4 — COLOUR RECOMMENDATIONS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Give 1–3 specific colour suggestions that would improve FUTURE outfits for this person based on what you can see. These are shopping recommendations — help the user build a better wardrobe.
-
-Each recommendation must be a complete sentence. Be specific about the colour and explain why.
-Examples:
-- "Olive green would add depth and work well with your warm tones."
-- "Deep navy would create stronger contrast than the current dark shade."
-- "Warm camel is more flattering than pure white for this colour palette."
-- "Try burgundy for an evening version of this look."
-
-Never give generic advice like "try a bright colour". Always be specific.
+Give 1–3 specific colour suggestions for FUTURE outfits. Shopping recommendations — help the user build a better wardrobe.
+Each must be a complete sentence. Be specific about the colour and explain why.
+✓ "Olive green would add depth and work well with your warm tones."
+✓ "Deep navy would create stronger contrast than the current dark shade."
+✗ "Try a bright colour." (too vague)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 5 — STYLING TIPS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Give 1–3 specific styling tips based entirely on what you see in the image. Never give generic advice.
-
-Every tip must reference the actual outfit. Examples:
-- "Add a slim belt to define the waist — the current silhouette is slightly shapeless."
-- "The jacket sleeves are too long. Rolling them once would look cleaner."
-- "A pointed heel would balance the midi skirt better than the current flat."
-- "The bag looks too small for this outfit. A structured tote would suit it better."
-
+Every tip must reference the actual outfit.
+✓ "Add a slim belt — the waist looks shapeless without it."
+✓ "The jacket sleeves are too long. Rolling them once would look cleaner."
+✓ "Pointed shoes will make the outfit look longer and cleaner."
 If the outfit needs no improvement, say so in one honest sentence.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 6 — SHOPPING VERDICT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Help the user spend their money wisely. Do not encourage every purchase.
-
+Help the user spend their money wisely.
 "worth_buying.verdict": true = worth buying, false = skip or maybe
-"worth_buying.label": exactly one of — "Worth it", "Maybe", or "Skip it"
+"worth_buying.label":
+  EN: exactly one of — "Worth it", "Maybe", "Skip it"
+  AR: exactly one of — "يستاهل", "ممكن", "ما يستاهل"
 "worth_buying.reasoning": 1–2 sentences explaining WHY, referencing the specific outfit.
-
-Examples:
-- "Worth it. This jacket is versatile enough to style with trousers, skirts, or jeans."
-- "Maybe. The colour works well, but the proportions limit what it can be paired with."
-- "Skip it. The silhouette is not balanced and will be difficult to style for most occasions."
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OUTPUT RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- "color_match.rating": one word only — "Great", "Good", "Okay", or "Poor"
-- "color_match.palette_type": 2–4 words, e.g. "warm earth tones", "cool neutrals"
-- "color_match.detail": max 15 words on how the colours look together — be honest
-- "outfit_cohesion.rating": one word — "Cohesive", "Mixed", or "Clashing"
+- "color_match.rating": EN: one word — "Great", "Good", "Okay", or "Poor" | AR: "رائع", "جيد", "مقبول", "ضعيف"
+- "color_match.palette_type": 2–4 words describing the colour group (EN) or its Arabic equivalent
+- "color_match.detail": max 15 words — plain honest description of how the colours look together
+- "outfit_cohesion.rating": EN: "Cohesive", "Mixed", or "Clashing" | AR: "متناسق", "مختلط", "متنافر"
 - "outfit_cohesion.detail": max 15 words on how well the pieces work together
-- "score_reasoning": max 20 words — plain explanation of the score, honest about weaknesses
-- "style_category": one short label — "Casual", "Smart Casual", "Formal", "Evening", "Streetwear", "Business", etc.
-- "score_notes": one short honest sentence per criterion explaining WHY that score was given — max 12 words each. If points were lost, say why specifically.
+- "score_reasoning": max 20 words — plain honest summary of the score
+- "style_category": one short label — e.g. EN: "Casual", "Smart Casual", "Formal" | AR: "كاجوال", "كاجوال راقي", "رسمي"
+- "score_notes": one short honest sentence per criterion — max 12 words each, plain language
 
-Return ONLY a JSON object with exactly this structure. Use these exact field names:
+NUMBERS AND BOOLEANS are IDENTICAL in both "en" and "ar" versions.
+Only STRING VALUES differ.
+
+Return ONLY a JSON object with exactly this structure. No markdown code blocks.
 
 {
-  "confidence": "high",
-  "confidence_reason": null,
-  "score": 74,
-  "score_breakdown": {
-    "color_harmony": 16,
-    "outfit_cohesion": 15,
-    "layering": 14,
-    "visual_balance": 15,
-    "style_suitability": 14
+  "en": {
+    "confidence": "high",
+    "confidence_reason": null,
+    "score": 74,
+    "score_breakdown": {
+      "color_harmony": 16,
+      "outfit_cohesion": 15,
+      "layering": 14,
+      "visual_balance": 15,
+      "style_suitability": 14
+    },
+    "score_reasoning": "Good colours and pieces that go well together, but layering feels slightly heavy.",
+    "score_notes": {
+      "color_harmony": "Brown and cream work well — no tension between them.",
+      "outfit_cohesion": "Both pieces go together naturally.",
+      "layering": "The blazer feels a little heavy over the light skirt.",
+      "visual_balance": "The long skirt balances the structured blazer well.",
+      "style_suitability": "Smart casual, but needs a focal point."
+    },
+    "color_match": {
+      "rating": "Good",
+      "palette_type": "warm earth tones",
+      "seasonal_palette": "Warm Autumn",
+      "seasonal_palette_reason": "Rich browns and cream suggest a warm Autumn palette.",
+      "detail": "Brown and cream work well together without competing."
+    },
+    "outfit_cohesion": {
+      "rating": "Cohesive",
+      "pieces_work_together": true,
+      "detail": "Both pieces share the same relaxed, elegant feel."
+    },
+    "style_category": "Smart Casual",
+    "styling_tips": [
+      "Add a slim belt — the waist looks shapeless without it.",
+      "Pointed shoes will make the outfit look longer and cleaner."
+    ],
+    "color_recommendations": [
+      "Olive green would suit your warm tones and add depth.",
+      "Deep camel looks better than pure white for this colour palette."
+    ],
+    "worth_buying": {
+      "verdict": true,
+      "label": "Worth it",
+      "reasoning": "This jacket is versatile — it works with trousers and skirts."
+    }
   },
-  "score_reasoning": "Good colour harmony and cohesion, but layering feels slightly heavy.",
-  "score_notes": {
-    "color_harmony": "Brown and cream are a natural pairing with no tension.",
-    "outfit_cohesion": "Both pieces share the same relaxed-elegant aesthetic.",
-    "layering": "The blazer feels slightly heavy over the lightweight skirt.",
-    "visual_balance": "The long skirt balances the structured blazer well.",
-    "style_suitability": "The look achieves smart casual but lacks a clear focal point."
-  },
-  "color_match": {
-    "rating": "Good",
-    "palette_type": "warm earth tones",
-    "seasonal_palette": "Warm Autumn",
-    "seasonal_palette_reason": "Rich browns and cream suggest a warm, muted Autumn palette.",
-    "detail": "Brown and cream pair naturally without competing."
-  },
-  "outfit_cohesion": {
-    "rating": "Cohesive",
-    "pieces_work_together": true,
-    "detail": "Both pieces share the same relaxed-elegant aesthetic."
-  },
-  "style_category": "Smart Casual",
-  "styling_tips": [
-    "Add a slim belt to define the waist — the silhouette is currently shapeless.",
-    "Try pointed flats instead of round-toe to elongate the silhouette."
-  ],
-  "color_recommendations": [
-    "Olive green would add depth and suit your warm colour palette.",
-    "Deep camel works better than pure white for this palette."
-  ],
-  "worth_buying": {
-    "verdict": true,
-    "label": "Worth it",
-    "reasoning": "This jacket is versatile and can be paired with both trousers and skirts."
+  "ar": {
+    "confidence": "high",
+    "confidence_reason": null,
+    "score": 74,
+    "score_breakdown": {
+      "color_harmony": 16,
+      "outfit_cohesion": 15,
+      "layering": 14,
+      "visual_balance": 15,
+      "style_suitability": 14
+    },
+    "score_reasoning": "الألوان متناسقة والقطع تكمل بعض، بس الطبقات تحتاج شوي تعديل.",
+    "score_notes": {
+      "color_harmony": "البني والكريمي متناسقين وما فيهم تنافر.",
+      "outfit_cohesion": "القطعتين تكملان بعض بشكل طبيعي.",
+      "layering": "الجاكيت ثقيلة شوي على التنورة الخفيفة.",
+      "visual_balance": "التنورة الطويلة توازن الجاكيت المنظمة زين.",
+      "style_suitability": "كاجوال راقي، بس يحتاج نقطة تركيز واضحة."
+    },
+    "color_match": {
+      "rating": "جيد",
+      "palette_type": "ألوان دافئة ترابية",
+      "seasonal_palette": "خريف دافئ",
+      "seasonal_palette_reason": "البني الغامق والكريمي يدلان على لوحة خريف دافئ.",
+      "detail": "البني والكريمي متناسقين وما فيهم تنافر."
+    },
+    "outfit_cohesion": {
+      "rating": "متناسق",
+      "pieces_work_together": true,
+      "detail": "القطعتين فيهم نفس الإحساس الأنيق والمريح."
+    },
+    "style_category": "كاجوال راقي",
+    "styling_tips": [
+      "أضيفي حزام رفيع — الخصر يحتاج تحديد.",
+      "الحذاء المدبب يعطي الإطلالة طول وترتيب أكثر."
+    ],
+    "color_recommendations": [
+      "الأخضر الزيتي يضيف عمق ويناسب ألوانك الدافئة.",
+      "الكاميل الغامق أحسن من الأبيض الكامل لهذي الإطلالة."
+    ],
+    "worth_buying": {
+      "verdict": true,
+      "label": "يستاهل",
+      "reasoning": "هذي الجاكيت مناسبة — تنفع مع بناطيل وتنانير وراحة."
+    }
   }
-}
-
-Do not add extra fields. Do not wrap the JSON in markdown code blocks.`;
+}`;
 
 // ── Security ──────────────────────────────────────────────────────────────────
 const ALLOWED_IMAGE_HOSTS = ["cdn.fashn.ai", "fashn.ai"];
@@ -274,7 +326,7 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { result_image_url?: unknown; garment_types?: unknown; language?: unknown };
+  let body: { result_image_url?: unknown; garment_types?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -309,14 +361,6 @@ export async function POST(req: NextRequest) {
     .slice(0, 8)
     .join(", ");
 
-  const language = typeof body.language === "string" && body.language === "ar" ? "ar" : "en";
-
-  const ARABIC_INSTRUCTION = `
-
-LANGUAGE REQUIREMENT: Write ALL text values in Arabic (Modern Standard Arabic — simple, clear, everyday language that non-native speakers can understand). JSON key names must stay in English. Every string value in the JSON must be in Arabic. Do not mix languages within a value.`;
-
-  const systemPrompt = SYSTEM_PROMPT + (language === "ar" ? ARABIC_INSTRUCTION : "");
-
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "Style analysis is not configured." }, { status: 500 });
@@ -333,7 +377,6 @@ LANGUAGE REQUIREMENT: Write ALL text values in Arabic (Modern Standard Arabic �
   }));
 
   try {
-    // OpenRouter speaks the OpenAI protocol — only baseURL changes.
     const client = new OpenAI({
       apiKey,
       baseURL: "https://openrouter.ai/api/v1",
@@ -351,12 +394,12 @@ LANGUAGE REQUIREMENT: Write ALL text values in Arabic (Modern Standard Arabic �
       const response = await client.chat.completions.create(
         {
           model,
-          max_tokens: 1024,
+          max_tokens: 2500,
           temperature: 0,
           seed: 42,
           response_format: { type: "json_object" },
           messages: [
-            { role: "system", content: systemPrompt },
+            { role: "system", content: SYSTEM_PROMPT },
             {
               role: "user",
               content: [
@@ -368,7 +411,7 @@ LANGUAGE REQUIREMENT: Write ALL text values in Arabic (Modern Standard Arabic �
                   type: "text",
                   text: `Please analyze this outfit. The garments shown are: ${garmentList}.
 
-Score the outfit using your rubric and return a valid JSON object. Focus only on the outfit — color, style, and how the pieces work together. Do not comment on body shape, size, or fit.`,
+Score the outfit using your rubric and return a valid JSON object with both "en" and "ar" versions as described. Focus only on the outfit — colour, style, and how the pieces work together. Do not comment on body shape, size, or fit. Numbers and booleans must be identical in both versions; only string values differ.`,
                 },
               ],
             },
@@ -379,20 +422,22 @@ Score the outfit using your rubric and return a valid JSON object. Focus only on
 
       const raw = response.choices[0]?.message.content ?? "";
 
-      // Strip markdown code fences that some models wrap JSON in (```json ... ```)
+      // Strip markdown code fences that some models wrap JSON in
       const jsonText = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 
-      // If the model omitted the top-level "score" but returned "score_breakdown",
-      // calculate it so the schema validation doesn't fail on that field alone.
       let parsed;
       try {
         const obj = JSON.parse(jsonText);
-        if (typeof obj?.score === "undefined" && obj?.score_breakdown) {
-          const b = obj.score_breakdown;
-          obj.score = (b.color_harmony ?? 0) + (b.outfit_cohesion ?? 0) +
+        // Auto-calculate missing top-level score for both versions
+        for (const lang of ["en", "ar"] as const) {
+          const v = obj?.[lang];
+          if (v && typeof v.score === "undefined" && v.score_breakdown) {
+            const b = v.score_breakdown;
+            v.score = (b.color_harmony ?? 0) + (b.outfit_cohesion ?? 0) +
                       (b.layering ?? 0) + (b.visual_balance ?? 0) + (b.style_suitability ?? 0);
+          }
         }
-        parsed = StyleReportSchema.safeParse(obj);
+        parsed = DualReportSchema.safeParse(obj);
       } catch {
         throw new Error("Model returned invalid JSON");
       }
@@ -412,7 +457,7 @@ Score the outfit using your rubric and return a valid JSON object. Focus only on
       requestId,
       event: "STYLE_REPORT_COMPLETE",
       model,
-      score: report.score,
+      score: report.en.score,
     }));
 
     return Response.json(report);

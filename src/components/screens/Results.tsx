@@ -186,7 +186,8 @@ export function ResultsScreen() {
   const [buyOpen,     setBuyOpen]     = useState(false);
 
   const resultUrl = mounted ? tryonSession.getResult() : null;
-  const { report, reportState } = useStyleReport(resultUrl, language);
+  const { report: dualReport, reportState } = useStyleReport(resultUrl);
+  const report = dualReport?.[language] ?? null;
 
   useEffect(() => { setMounted(true); }, []);
 

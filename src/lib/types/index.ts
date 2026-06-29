@@ -30,6 +30,11 @@ export interface MeasureField {
   unit: string;
 }
 
+export interface DualReport {
+  en: StyleReport;
+  ar: StyleReport;
+}
+
 export interface StyleReport {
   confidence: "high" | "medium" | "low";
   confidence_reason: string | null;

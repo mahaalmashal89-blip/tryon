@@ -7,7 +7,7 @@
  * are ever written to storage.
  */
 
-import type { ClothingType } from "@/lib/types";
+import type { ClothingType, DualReport } from "@/lib/types";
 
 export interface GarmentDraft {
   id: number;
@@ -32,6 +32,7 @@ const RESULT_TTL_MS = 30 * 60 * 1000; // 30 minutes
 interface StoredResult {
   url: string;
   expiresAt: number;
+  report?: DualReport;
 }
 
 const s: Session = {
@@ -73,6 +74,25 @@ export const tryonSession = {
       }
       return entry.url;
     } catch { return ""; }
+  },
+
+  saveReport(report: DualReport) {
+    try {
+      const raw = sessionStorage.getItem(RESULT_KEY);
+      if (!raw) return;
+      const entry: StoredResult = JSON.parse(raw);
+      entry.report = report;
+      sessionStorage.setItem(RESULT_KEY, JSON.stringify(entry));
+    } catch { /* quota or SSR */ }
+  },
+  getCachedReport(): DualReport | null {
+    try {
+      const raw = sessionStorage.getItem(RESULT_KEY);
+      if (!raw) return null;
+      const entry: StoredResult = JSON.parse(raw);
+      if (Date.now() > entry.expiresAt) return null;
+      return entry.report ?? null;
+    } catch { return null; }
   },
 
   setError(err: string) { s.error = err; },
