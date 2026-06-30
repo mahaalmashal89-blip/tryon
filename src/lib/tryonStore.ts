@@ -48,6 +48,18 @@ export async function saveTryonSession(
   });
 }
 
+export async function deleteTryonSession(id: string): Promise<void> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from("tryon_sessions")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id); // belt-and-suspenders: RLS also enforces ownership
+}
+
 export async function loadTryonHistory(): Promise<SavedTryonSession[]> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
