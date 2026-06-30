@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { loadTryonHistory, deleteTryonSession, type SavedTryonSession, type StoredGarment } from "@/lib/tryonStore";
 import { useLanguage } from "@/hooks/useLanguage";
 import type { StyleReport } from "@/lib/types";
-import { SavedResultDetail } from "@/components/screens/SavedResultDetail";
 
 // ── Translations ──────────────────────────────────────────────────────────────
 const T = {
@@ -141,10 +141,10 @@ function ScoreBar({ label, score, note, max = 20 }: { label: string; score: numb
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export function WardrobeScreen() {
+  const router = useRouter();
   const { language } = useLanguage();
   const [sessions,        setSessions]        = useState<SavedTryonSession[]>([]);
   const [loading,         setLoading]         = useState(true);
-  const [selected,        setSelected]        = useState<SavedTryonSession | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId,      setDeletingId]      = useState<string | null>(null);
 
@@ -163,20 +163,9 @@ export function WardrobeScreen() {
     try {
       await deleteTryonSession(id);
       setSessions((prev) => prev.filter((s) => s.id !== id));
-      if (selected?.id === id) setSelected(null);
     } finally {
       setDeletingId(null);
     }
-  }
-
-  // When a session is selected, show the full Results-style detail view
-  if (selected) {
-    return (
-      <SavedResultDetail
-        session={selected}
-        onBack={() => setSelected(null)}
-      />
-    );
   }
 
   return (
@@ -240,7 +229,7 @@ export function WardrobeScreen() {
               >
                 {/* Thumbnail — always taps to open detail */}
                 <button
-                  onClick={() => { setConfirmDeleteId(null); setSelected(session); }}
+                  onClick={() => { setConfirmDeleteId(null); router.push(`/wardrobe/${session.id}`); }}
                   className="relative w-[64px] h-[80px] flex-none rounded-[11px] overflow-hidden border border-[rgba(20,16,22,0.06)] bg-[#F2EEEC] p-0 border-none cursor-pointer"
                   aria-label="Open details"
                 >
@@ -257,7 +246,7 @@ export function WardrobeScreen() {
 
                 {/* Info area — taps to open detail */}
                 <button
-                  onClick={() => { setConfirmDeleteId(null); setSelected(session); }}
+                  onClick={() => { setConfirmDeleteId(null); router.push(`/wardrobe/${session.id}`); }}
                   className="flex-1 min-w-0 text-left border-none bg-transparent p-0 cursor-pointer"
                 >
                   <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#9A9298]">
@@ -279,7 +268,7 @@ export function WardrobeScreen() {
                 {/* Score */}
                 {score !== null && !isConfirming && (
                   <button
-                    onClick={() => { setConfirmDeleteId(null); setSelected(session); }}
+                    onClick={() => { setConfirmDeleteId(null); router.push(`/wardrobe/${session.id}`); }}
                     className="text-right flex-none border-none bg-transparent p-0 cursor-pointer"
                   >
                     <div className="font-[family-name:var(--font-bodoni)] font-semibold text-[26px] leading-none text-[#141016]">
