@@ -178,7 +178,15 @@ function LanguageToggle({ language, setLanguage }: { language: Language; setLang
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function ResultsScreen() {
+interface ResultsScreenProps {
+  // Saved-mode: pre-loaded data from Supabase (used by My Wardrobe).
+  // When provided, hooks are bypassed — no FASHN / OpenRouter / style-report calls.
+  savedResultUrl?: string | null;
+  savedReport?: import("@/lib/types").DualReport | null;
+  onBack?: () => void;
+}
+
+export function ResultsScreen({ savedResultUrl, savedReport, onBack }: ResultsScreenProps = {}) {
   const router = useRouter();
   const { language, setLanguage } = useLanguage();
   const [variant, setVariant]         = useState<ResultsVariant>("a");
@@ -193,9 +201,15 @@ export function ResultsScreen() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [buyOpen,     setBuyOpen]     = useState(false);
 
-  const resultUrl = mounted ? tryonSession.getResult() : null;
-  const { report: dualReport, reportState } = useStyleReport(resultUrl);
-  const report = dualReport?.[language] ?? null;
+  const isSaved = savedResultUrl !== undefined; // true when opened from My Wardrobe
+
+  // In saved-mode pass null so useStyleReport stays idle and makes no API calls
+  const liveResultUrl = mounted ? tryonSession.getResult() : null;
+  const resultUrl     = isSaved ? savedResultUrl : liveResultUrl;
+  const { report: fetchedReport, reportState: fetchedState } = useStyleReport(isSaved ? null : resultUrl);
+  const dualReport  = isSaved ? (savedReport ?? null) : fetchedReport;
+  const reportState = isSaved ? (dualReport ? "success" : "failed") : fetchedState;
+  const report      = dualReport?.[language] ?? null;
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -568,12 +582,12 @@ export function ResultsScreen() {
             {downloading ? t.downloading : t.download}
           </button>
           <button
-            onClick={handleSaveLater}
-            disabled={!resultUrl || saved || saving || isLoading}
+            onClick={isSaved ? undefined : handleSaveLater}
+            disabled={isSaved || !resultUrl || saved || saving || isLoading}
             className="flex-1 py-[16px] border border-[rgba(20,16,22,0.14)] rounded-full bg-white font-[family-name:var(--font-grotesk)] font-medium text-[14px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            style={{ color: saved ? "#6B6470" : "#141016" }}
+            style={{ color: (isSaved || saved) ? "#6B6470" : "#141016" }}
           >
-            {isLoading ? t.saveWaiting : saving ? t.saving : saved ? t.saved : t.save}
+            {isSaved ? t.saved : isLoading ? t.saveWaiting : saving ? t.saving : saved ? t.saved : t.save}
           </button>
         </div>
 
@@ -705,9 +719,19 @@ export function ResultsScreen() {
       <div className="flex flex-col md:hidden">
         <div className="px-[20px] pt-[18px] flex items-center justify-between">
           <div className="flex items-center gap-[10px]">
-            <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#9A9298]">
-              {t.reportLabel}
-            </span>
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="border-none bg-transparent p-0 cursor-pointer font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] uppercase text-[#9A9298]"
+              >
+                {language === "ar" ? "← السجل" : "← History"}
+              </button>
+            )}
+            {!onBack && (
+              <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#9A9298]">
+                {t.reportLabel}
+              </span>
+            )}
             <ConfidenceBadge report={report} loading={isLoading} lang={language} />
           </div>
           <LanguageToggle language={language} setLanguage={setLanguage} />
@@ -721,9 +745,19 @@ export function ResultsScreen() {
         <div className="md:sticky md:top-[40px] md:self-start">
           <div className="flex items-center justify-between mb-[16px]">
             <div className="flex items-center gap-[10px]">
-              <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#9A9298]">
-                {t.reportLabel}
-              </span>
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  className="border-none bg-transparent p-0 cursor-pointer font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] uppercase text-[#9A9298] hover:text-[#141016] transition-colors"
+                >
+                  {language === "ar" ? "← السجل" : "← History"}
+                </button>
+              )}
+              {!onBack && (
+                <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#9A9298]">
+                  {t.reportLabel}
+                </span>
+              )}
               <ConfidenceBadge report={report} loading={isLoading} lang={language} />
             </div>
             <LanguageToggle language={language} setLanguage={setLanguage} />
