@@ -21,19 +21,19 @@ export function HomeScreen() {
     <section className="min-h-full flex flex-col animate-fade">
       {/* Banner */}
       <div className="px-[20px] pt-[18px]">
-        <div className="relative rounded-[18px] overflow-hidden border border-[rgba(20,16,22,0.08)] md:h-[38vh]" style={{ background: "#EDE5F2" }}>
+        <div className="relative rounded-[18px] overflow-hidden border border-[rgba(20,16,22,0.08)]" style={{ background: "#EDE5F2" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageSrc}
             alt="How TRYON Works"
-            className="w-full h-auto block md:absolute md:inset-0 md:w-full md:h-full md:object-contain"
+            className="w-full h-auto block"
             style={{ display: "block" }}
           />
         </div>
       </div>
 
       {/* Heading */}
-      <div className="px-[20px] pt-[26px] text-center md:pt-[16px]">
+      <div className="px-[20px] pt-[26px] text-center">
         <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#9A9298]">
           Ready when you are
         </span>
@@ -43,7 +43,7 @@ export function HomeScreen() {
       </div>
 
       {/* Big CTA circle */}
-      <div className="flex-1 flex items-center justify-center px-[20px] py-[26px] md:py-[16px]">
+      <div className="flex-1 flex items-center justify-center px-[20px] py-[26px]">
         <button
           onClick={() => router.push("/tryon/upload")}
           className="relative w-[208px] h-[208px] rounded-full border-none cursor-pointer flex flex-col items-center justify-center gap-[4px]"
