@@ -1,9 +1,21 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { loadProfile } from "@/lib/profileStore";
 
 export function HomeScreen() {
   const router = useRouter();
+  const [gender, setGender] = useState<"female" | "male">("female");
+
+  useEffect(() => {
+    loadProfile().then((p) => { if (p?.gender) setGender(p.gender); });
+  }, []);
+
+  const imageSrc =
+    gender === "male"
+      ? "/images/how-tryon-works-male.jpg"
+      : "/images/how-tryon-works.jpg";
 
   return (
     <section className="min-h-full flex flex-col animate-fade">
@@ -12,7 +24,7 @@ export function HomeScreen() {
         <div className="relative rounded-[18px] overflow-hidden border border-[rgba(20,16,22,0.08)] md:h-[38vh]" style={{ background: "#EDE5F2" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/images/how-tryon-works.jpg"
+            src={imageSrc}
             alt="How TRYON Works"
             className="w-full h-auto block md:absolute md:inset-0 md:w-full md:h-full md:object-contain"
             style={{ display: "block" }}
