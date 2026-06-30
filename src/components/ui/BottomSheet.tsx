@@ -12,37 +12,14 @@ interface BottomSheetProps {
 
 export function BottomSheet({ open, onClose, title, dir = "ltr", children }: BottomSheetProps) {
   const mobileRef = useRef<HTMLDivElement>(null);
-  const scrollAncestor = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
-      // Also lock the nearest scrollable ancestor (app uses overflow-y-auto on the
-      // content container, not body — body lock alone doesn't prevent background scroll)
-      let el: HTMLElement | null = mobileRef.current?.parentElement ?? null;
-      while (el && el !== document.body) {
-        const oy = window.getComputedStyle(el).overflowY;
-        if (oy === "auto" || oy === "scroll") {
-          el.style.overflowY = "hidden";
-          scrollAncestor.current = el;
-          break;
-        }
-        el = el.parentElement;
-      }
     } else {
       document.body.style.overflow = "";
-      if (scrollAncestor.current) {
-        scrollAncestor.current.style.overflowY = "";
-        scrollAncestor.current = null;
-      }
     }
-    return () => {
-      document.body.style.overflow = "";
-      if (scrollAncestor.current) {
-        scrollAncestor.current.style.overflowY = "";
-        scrollAncestor.current = null;
-      }
-    };
+    return () => { document.body.style.overflow = ""; };
   }, [open]);
 
   useEffect(() => {
