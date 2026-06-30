@@ -190,7 +190,7 @@ export function ResultsScreen({ savedResultUrl, savedReport, onBack }: ResultsSc
   const [variant, setVariant]         = useState<ResultsVariant>("a");
   const [mounted, setMounted]         = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [saved, setSaved]             = useState(false);
+  const [saved, setSaved]             = useState(isSaved);
   const [saving, setSaving]           = useState(false);
 
   // Bottom sheet states
