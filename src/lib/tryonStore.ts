@@ -48,6 +48,26 @@ export async function saveTryonSession(
   });
 }
 
+export async function getTryonSession(id: string): Promise<SavedTryonSession | null> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data } = await supabase
+    .from("tryon_sessions")
+    .select("id, garments, result_image_url, created_at, expires_at, style_report")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .single();
+  return (data ?? null) as unknown as SavedTryonSession | null;
+}
+
+export async function deleteTryonSession(id: string): Promise<void> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("tryon_sessions").delete().eq("id", id).eq("user_id", user.id);
+}
+
 export async function loadTryonHistory(): Promise<SavedTryonSession[]> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();

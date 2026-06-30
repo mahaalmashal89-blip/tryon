@@ -8,9 +8,9 @@ import { ScoreCircle } from "@/components/ui/ScoreCircle";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { tryonSession } from "@/lib/tryonSession";
 import { saveTryonSession } from "@/lib/tryonStore";
-import { useStyleReport } from "@/hooks/useStyleReport";
+import { useStyleReport, type ReportState } from "@/hooks/useStyleReport";
 import { useLanguage, type Language } from "@/hooks/useLanguage";
-import type { StyleReport } from "@/lib/types";
+import type { StyleReport, DualReport } from "@/lib/types";
 
 // ── Translations ──────────────────────────────────────────────────────────────
 const T = {
@@ -40,6 +40,7 @@ const T = {
     saved:          "✓ Saved 30 days",
     downloading:    "Downloading…",
     zdr:            "Your photo is never stored · Zero Data Retention",
+    backToWardrobe: "← Wardrobe",
     tapDetails:     "Tap for details",
     unavailable:    "Style analysis couldn't be completed. Generate a new look to retry.",
     tipsNone:       "Tips unavailable — generate a new look to retry.",
@@ -81,6 +82,7 @@ const T = {
     saved:          "✓ تم الحفظ",
     downloading:    "جارٍ التنزيل…",
     zdr:            "صورتك لا تُحفظ أبداً · صفر احتفاظ بالبيانات",
+    backToWardrobe: "← الخزانة",
     tapDetails:     "اضغطي للتفاصيل",
     unavailable:    "لم يتمكن التحليل من الاكتمال. جربي إطلالة جديدة.",
     tipsNone:       "النصائح غير متاحة — جربي إطلالة جديدة.",
@@ -178,13 +180,22 @@ function LanguageToggle({ language, setLanguage }: { language: Language; setLang
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function ResultsScreen() {
+interface ResultsScreenProps {
+  savedResultUrl?: string | null;
+  savedReport?: DualReport | null;
+  onBack?: () => void;
+}
+
+export function ResultsScreen({ savedResultUrl, savedReport, onBack }: ResultsScreenProps = {}) {
+  // MUST be before all useState calls — avoids TDZ ReferenceError
+  const isSaved = savedResultUrl !== undefined;
+
   const router = useRouter();
   const { language, setLanguage } = useLanguage();
   const [variant, setVariant]         = useState<ResultsVariant>("a");
   const [mounted, setMounted]         = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [saved, setSaved]             = useState(false);
+  const [saved, setSaved]             = useState(isSaved);
   const [saving, setSaving]           = useState(false);
 
   // Bottom sheet states
@@ -193,8 +204,14 @@ export function ResultsScreen() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [buyOpen,     setBuyOpen]     = useState(false);
 
-  const resultUrl = mounted ? tryonSession.getResult() : null;
-  const { report: dualReport, reportState } = useStyleReport(resultUrl);
+  // In saved mode: resultUrl comes from props; never call the style-report API
+  const liveResultUrl = mounted ? tryonSession.getResult() : null;
+  const resultUrl = isSaved ? (savedResultUrl ?? null) : liveResultUrl;
+  const { report: fetchedDualReport, reportState: fetchedReportState } = useStyleReport(isSaved ? null : resultUrl);
+  const dualReport: DualReport | null = isSaved ? (savedReport ?? null) : fetchedDualReport;
+  const reportState: ReportState = isSaved
+    ? (savedReport != null ? "success" : "failed")
+    : fetchedReportState;
   const report = dualReport?.[language] ?? null;
 
   useEffect(() => { setMounted(true); }, []);
@@ -578,22 +595,35 @@ export function ResultsScreen() {
         </div>
 
         <div className="flex gap-[10px] items-center">
-          <button
-            onClick={() => router.push("/tryon/upload")}
-            className="flex-1 py-[14px] border border-[rgba(20,16,22,0.14)] rounded-full bg-white font-[family-name:var(--font-grotesk)] font-medium text-[14px] text-[#141016] cursor-pointer"
-          >
-            {t.generate}
-          </button>
-          <MiniTab
-            labels={["A", "B"]}
-            active={variant.toUpperCase()}
-            onChange={(v) => setVariant(v.toLowerCase() as ResultsVariant)}
-          />
+          {isSaved ? (
+            <button
+              onClick={onBack ?? (() => router.push("/wardrobe"))}
+              className="flex-1 py-[14px] border border-[rgba(20,16,22,0.14)] rounded-full bg-white font-[family-name:var(--font-grotesk)] font-medium text-[14px] text-[#141016] cursor-pointer"
+            >
+              {t.backToWardrobe}
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => router.push("/tryon/upload")}
+                className="flex-1 py-[14px] border border-[rgba(20,16,22,0.14)] rounded-full bg-white font-[family-name:var(--font-grotesk)] font-medium text-[14px] text-[#141016] cursor-pointer"
+              >
+                {t.generate}
+              </button>
+              <MiniTab
+                labels={["A", "B"]}
+                active={variant.toUpperCase()}
+                onChange={(v) => setVariant(v.toLowerCase() as ResultsVariant)}
+              />
+            </>
+          )}
         </div>
 
-        <p className="m-0 text-center font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#B6ADA8]">
-          {t.zdr}
-        </p>
+        {!isSaved && (
+          <p className="m-0 text-center font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#B6ADA8]">
+            {t.zdr}
+          </p>
+        )}
       </div>
     </>
   );

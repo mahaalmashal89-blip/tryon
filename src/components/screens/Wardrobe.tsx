@@ -1,40 +1,34 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { loadTryonHistory, type SavedTryonSession, type StoredGarment } from "@/lib/tryonStore";
-import { BottomSheet } from "@/components/ui/BottomSheet";
-import { useLanguage, type Language } from "@/hooks/useLanguage";
+import { useRouter } from "next/navigation";
+import { loadTryonHistory, deleteTryonSession, type SavedTryonSession, type StoredGarment } from "@/lib/tryonStore";
+import { useLanguage } from "@/hooks/useLanguage";
 import type { StyleReport } from "@/lib/types";
 
 // ── Translations ──────────────────────────────────────────────────────────────
 const T = {
   en: {
-    section:   "05 · My Wardrobe",
-    heading:   "History",
-    empty:     "No saved try-ons yet. Save a result from the try-on screen to see it here.",
-    score:     "Score",
-    garments:  "Garments",
-    style:     "Style",
-    colorType: "Color Type",
-    verdict:   "Shopping Verdict",
-    tips:      "Styling Tips",
-    saved:     "Saved",
-    daysLeft:  "days left",
-    noReport:  "AI report not available for this saved session.",
+    section:       "05 · My Wardrobe",
+    heading:       "History",
+    empty:         "No saved try-ons yet. Save a result from the try-on screen to see it here.",
+    score:         "Score",
+    saved:         "Saved",
+    daysLeft:      "days left",
+    deleteConfirm: "Delete this saved look?",
+    cancel:        "Cancel",
+    delete:        "Delete",
   },
   ar: {
-    section:   "٠٥ · خزانة ملابسي",
-    heading:   "السجل",
-    empty:     "لم تحفظي أي نتيجة بعد. احفظي نتيجة من شاشة التجربة لتظهر هنا.",
-    score:     "النقاط",
-    garments:  "القطع",
-    style:     "الأسلوب",
-    colorType: "نوع اللون",
-    verdict:   "قرار الشراء",
-    tips:      "نصائح التنسيق",
-    saved:     "حُفظت",
-    daysLeft:  "أيام متبقية",
-    noReport:  "التقرير غير متاح لهذه الجلسة المحفوظة.",
+    section:       "٠٥ · خزانة ملابسي",
+    heading:       "السجل",
+    empty:         "لم تحفظي أي نتيجة بعد. احفظي نتيجة من شاشة التجربة لتظهر هنا.",
+    score:         "النقاط",
+    saved:         "حُفظت",
+    daysLeft:      "أيام متبقية",
+    deleteConfirm: "حذف هذه الإطلالة المحفوظة؟",
+    cancel:        "إلغاء",
+    delete:        "حذف",
   },
 };
 
@@ -54,10 +48,6 @@ function verdictFromReport(report: StyleReport): "BUY" | "MAYBE" | "SKIP" {
   return VERDICT_MAP[report.worth_buying.verdict] ?? "MAYBE";
 }
 
-function daysLeft(expiresAt: string): number {
-  return Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 86_400_000));
-}
-
 function garmentLabel(garments: StoredGarment[]): string {
   if (!garments?.length) return "—";
   return garments.map((g) => g.type).join(" + ");
@@ -69,214 +59,14 @@ function formatDate(iso: string): string {
   });
 }
 
-// ── Detail bottom sheet ───────────────────────────────────────────────────────
-
-function SessionDetailSheet({
-  session,
-  open,
-  onClose,
-  language,
-}: {
-  session: SavedTryonSession | null;
-  open: boolean;
-  onClose: () => void;
-  language: Language;
-}) {
-  const [lang, setLang] = useState<Language>(language);
-
-  useEffect(() => { if (open) setLang(language); }, [open, language]);
-
-  if (!session) return null;
-
-  const report  = session.style_report?.[lang] ?? null;
-  const verdict = report ? verdictFromReport(report) : null;
-  const vs      = verdict ? VERDICT_STYLES[verdict] : null;
-  const t       = T[language];
-  const dir     = lang === "ar" ? "rtl" : "ltr";
-
-  return (
-    <BottomSheet
-      open={open}
-      onClose={onClose}
-      title={garmentLabel(session.garments)}
-      dir={dir}
-    >
-      <div className="flex flex-col gap-[20px]" dir={dir}>
-
-        {/* Result image */}
-        {session.result_image_url && (
-          <div
-            className="relative rounded-[16px] overflow-hidden bg-[#F8F5F2] w-full"
-            style={{ aspectRatio: "3 / 4" }}
-          >
-            <img
-              src={session.result_image_url}
-              alt="Try-on result"
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
-
-        {/* Score + verdict */}
-        {report && (
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[2px]">
-                {t.score}
-              </div>
-              <div className="font-[family-name:var(--font-bodoni)] font-semibold text-[48px] leading-none text-[#141016]">
-                {report.score}
-                <span className="text-[18px] text-[#9A9298]">/100</span>
-              </div>
-            </div>
-            {vs && verdict && (
-              <span
-                className="px-[16px] py-[8px] rounded-full font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em]"
-                style={{ background: vs.bg, color: vs.fg }}
-              >
-                {verdict}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Language toggle — only when both EN and AR are saved */}
-        {session.style_report?.en && session.style_report?.ar && (
-          <div className="flex items-center gap-[2px] self-start rounded-full border border-[rgba(20,16,22,0.12)] overflow-hidden">
-            {(["en", "ar"] as Language[]).map((l) => (
-              <button
-                key={l}
-                onClick={() => setLang(l)}
-                className="px-[10px] py-[5px] border-none cursor-pointer font-[family-name:var(--font-mono)] text-[10px] tracking-[0.06em] transition-colors"
-                style={{
-                  background: lang === l ? "#141016" : "transparent",
-                  color:      lang === l ? "#fff"     : "#9A9298",
-                }}
-              >
-                {l === "en" ? "EN" : "عربية"}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {report ? (
-          <div className="flex flex-col">
-
-            {/* Garments */}
-            <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
-                {t.garments}
-              </div>
-              <div className="font-[family-name:var(--font-grotesk)] text-[14px] text-[#141016]">
-                {garmentLabel(session.garments)}
-              </div>
-            </div>
-
-            {/* Style category */}
-            {report.style_category && (
-              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
-                  {t.style}
-                </div>
-                <div className="font-[family-name:var(--font-bodoni)] text-[20px] text-[#141016]">
-                  {report.style_category}
-                </div>
-              </div>
-            )}
-
-            {/* Personal color type */}
-            {report.personal_color_analysis?.color_type && (
-              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
-                  {t.colorType}
-                </div>
-                <div className="font-[family-name:var(--font-bodoni)] text-[20px] text-[#141016]">
-                  {report.personal_color_analysis.color_type}
-                </div>
-              </div>
-            )}
-
-            {/* Shopping verdict */}
-            <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[8px]">
-                {t.verdict}
-              </div>
-              {vs && (
-                <div
-                  className="inline-block px-[12px] py-[5px] rounded-full font-[family-name:var(--font-grotesk)] text-[13px] font-medium mb-[10px]"
-                  style={{ background: vs.bg, color: vs.fg }}
-                >
-                  {report.worth_buying.label}
-                </div>
-              )}
-              <p className="m-0 font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.65] text-[#3A343C]">
-                {report.worth_buying.reasoning}
-              </p>
-            </div>
-
-            {/* Styling tips */}
-            {report.styling_tips?.length > 0 && (
-              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[10px]">
-                  {t.tips}
-                </div>
-                <ul className="m-0 p-0 list-none flex flex-col gap-[10px]">
-                  {report.styling_tips.slice(0, 3).map((tip, i) => (
-                    <li key={i} className="flex gap-[12px] items-start">
-                      <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#C4BEC8] pt-[2px] flex-none">
-                        0{i + 1}
-                      </span>
-                      <span className="font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.65] text-[#3A343C]">
-                        {tip}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Date + expiry */}
-            <div className="pt-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-              <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] text-[#9A9298]">
-                {t.saved} {formatDate(session.created_at)} · {daysLeft(session.expires_at)} {t.daysLeft}
-              </span>
-            </div>
-
-          </div>
-        ) : (
-          /* Graceful fallback: session saved before report persistence existed */
-          <>
-            <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
-                {t.garments}
-              </div>
-              <div className="font-[family-name:var(--font-grotesk)] text-[14px] text-[#141016]">
-                {garmentLabel(session.garments)}
-              </div>
-            </div>
-            <p className="m-0 font-[family-name:var(--font-grotesk)] text-[14px] text-[#9A9298]">
-              {t.noReport}
-            </p>
-            <div className="pt-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-              <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] text-[#9A9298]">
-                {t.saved} {formatDate(session.created_at)} · {daysLeft(session.expires_at)} {t.daysLeft}
-              </span>
-            </div>
-          </>
-        )}
-
-      </div>
-    </BottomSheet>
-  );
-}
-
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export function WardrobeScreen() {
+  const router = useRouter();
   const { language } = useLanguage();
-  const [sessions, setSessions] = useState<SavedTryonSession[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [selected, setSelected] = useState<SavedTryonSession | null>(null);
+  const [sessions, setSessions]           = useState<SavedTryonSession[]>([]);
+  const [loading, setLoading]             = useState(true);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const t   = T[language];
   const dir = language === "ar" ? "rtl" : "ltr";
@@ -286,6 +76,12 @@ export function WardrobeScreen() {
       .then(setSessions)
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleDelete(id: string) {
+    await deleteTryonSession(id);
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    setConfirmDeleteId(null);
+  }
 
   return (
     <section
@@ -337,12 +133,16 @@ export function WardrobeScreen() {
             const score   = report?.score ?? null;
             const verdict = report ? verdictFromReport(report) : null;
             const vs      = verdict ? VERDICT_STYLES[verdict] : null;
+            const inConfirm = confirmDeleteId === session.id;
 
             return (
-              <button
+              <div
                 key={session.id}
-                onClick={() => setSelected(session)}
-                className="flex gap-[14px] items-center p-[12px] border border-[rgba(20,16,22,0.1)] rounded-[16px] text-left w-full bg-white cursor-pointer hover:bg-[#FAF8F6] transition-colors"
+                className="relative flex gap-[14px] items-center p-[12px] border border-[rgba(20,16,22,0.1)] rounded-[16px] text-left w-full bg-white cursor-pointer hover:bg-[#FAF8F6] transition-colors"
+                onClick={() => {
+                  if (inConfirm) return;
+                  router.push(`/wardrobe/${session.id}`);
+                }}
               >
                 {/* Thumbnail */}
                 <div className="relative w-[64px] h-[80px] flex-none rounded-[11px] overflow-hidden border border-[rgba(20,16,22,0.06)] bg-[#F2EEEC]">
@@ -375,30 +175,58 @@ export function WardrobeScreen() {
                   )}
                 </div>
 
-                {/* Score */}
-                {score !== null && (
-                  <div className="text-right flex-none">
-                    <div className="font-[family-name:var(--font-bodoni)] font-semibold text-[26px] leading-none text-[#141016]">
-                      {score}
+                {/* Score + delete */}
+                <div className="flex flex-col items-end gap-[8px] flex-none">
+                  {score !== null && (
+                    <div className="text-right">
+                      <div className="font-[family-name:var(--font-bodoni)] font-semibold text-[26px] leading-none text-[#141016]">
+                        {score}
+                      </div>
+                      <div className="font-[family-name:var(--font-mono)] text-[9px] text-[#9A9298]">
+                        /100
+                      </div>
                     </div>
-                    <div className="font-[family-name:var(--font-mono)] text-[9px] text-[#9A9298]">
-                      /100
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(session.id); }}
+                    className="w-[28px] h-[28px] rounded-full flex items-center justify-center border border-[rgba(20,16,22,0.1)] bg-white text-[#9A9298] text-[16px] leading-none cursor-pointer hover:border-[rgba(20,16,22,0.25)] transition-colors"
+                    aria-label={t.delete}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Delete confirm overlay */}
+                {inConfirm && (
+                  <div
+                    className="absolute inset-0 rounded-[16px] bg-white flex flex-col items-center justify-center gap-[12px] px-[20px]"
+                    style={{ border: "1px solid rgba(20,16,22,0.1)" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <p className="m-0 font-[family-name:var(--font-grotesk)] text-[13px] text-[#141016] text-center">
+                      {t.deleteConfirm}
+                    </p>
+                    <div className="flex gap-[10px]">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
+                        className="px-[18px] py-[8px] rounded-full border border-[rgba(20,16,22,0.14)] bg-white font-[family-name:var(--font-grotesk)] text-[13px] text-[#141016] cursor-pointer"
+                      >
+                        {t.cancel}
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(session.id); }}
+                        className="px-[18px] py-[8px] rounded-full bg-[#141016] font-[family-name:var(--font-grotesk)] text-[13px] text-white cursor-pointer border-none"
+                      >
+                        {t.delete}
+                      </button>
                     </div>
                   </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
       )}
-
-      {/* Detail sheet — opens on card tap */}
-      <SessionDetailSheet
-        session={selected}
-        open={selected !== null}
-        onClose={() => setSelected(null)}
-        language={language}
-      />
     </section>
   );
 }
