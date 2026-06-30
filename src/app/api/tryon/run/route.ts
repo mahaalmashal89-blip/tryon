@@ -22,7 +22,13 @@ export async function POST(req: NextRequest) {
   const route = "POST /api/tryon/run";
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  let user;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch {
+    return Response.json({ error: "Service temporarily unavailable. Please try again." }, { status: 503 });
+  }
   if (!user) {
     logSecurityEvent({ ts: new Date().toISOString(), requestId, event: "AUTH_FAILURE", route, userId: null });
     return Response.json({ error: "Unauthorized" }, { status: 401 });
