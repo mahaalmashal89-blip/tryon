@@ -1,93 +1,47 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { loadTryonHistory, deleteTryonSession, type SavedTryonSession, type StoredGarment } from "@/lib/tryonStore";
-import { useLanguage } from "@/hooks/useLanguage";
+import { loadTryonHistory, type SavedTryonSession, type StoredGarment } from "@/lib/tryonStore";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { useLanguage, type Language } from "@/hooks/useLanguage";
 import type { StyleReport } from "@/lib/types";
 
 // ── Translations ──────────────────────────────────────────────────────────────
 const T = {
   en: {
-    section:        "05 · My Wardrobe",
-    heading:        "History",
-    empty:          "No saved try-ons yet. Save a result from the try-on screen to see it here.",
-    score:          "Score",
-    scoreBreakdown: "Score Breakdown",
-    garments:       "Garments",
-    style:          "Style",
-    colorMatch:     "Color Match",
-    colorType:      "Personal Color Type",
-    colorWhy:       "Why",
-    outfitAdvice:   "Outfit Color Advice",
-    colorPicks:     "Color Picks for Next Time",
-    verdict:        "Shopping Verdict",
-    tips:           "Styling Tips",
-    saved:          "Saved",
-    daysLeft:       "days left",
-    noReport:       "AI report not available for this saved session.",
-    delete:         "Delete",
-    deleteConfirm:  "Confirm delete",
-    deleteCancel:   "Cancel",
-    confidence: {
-      high:   "High confidence",
-      medium: "Medium confidence",
-      low:    "Low confidence",
-    },
-    scoreLabels: {
-      color_harmony:     "Color Harmony",
-      outfit_cohesion:   "Outfit Cohesion",
-      layering:          "Layering & Structure",
-      visual_balance:    "Visual Balance",
-      style_suitability: "Style Suitability",
-    },
+    section:   "05 · My Wardrobe",
+    heading:   "History",
+    empty:     "No saved try-ons yet. Save a result from the try-on screen to see it here.",
+    score:     "Score",
+    garments:  "Garments",
+    style:     "Style",
+    colorType: "Color Type",
+    verdict:   "Shopping Verdict",
+    tips:      "Styling Tips",
+    saved:     "Saved",
+    daysLeft:  "days left",
+    noReport:  "AI report not available for this saved session.",
   },
   ar: {
-    section:        "٠٥ · خزانة ملابسي",
-    heading:        "السجل",
-    empty:          "لم تحفظي أي نتيجة بعد. احفظي نتيجة من شاشة التجربة لتظهر هنا.",
-    score:          "النقاط",
-    scoreBreakdown: "تفصيل النقاط",
-    garments:       "القطع",
-    style:          "الأسلوب",
-    colorMatch:     "تناسق الألوان",
-    colorType:      "نوع لونك الشخصي",
-    colorWhy:       "السبب",
-    outfitAdvice:   "نصيحة لإطلالتك",
-    colorPicks:     "الألوان المقترحة للمرة القادمة",
-    verdict:        "قرار الشراء",
-    tips:           "نصائح التنسيق",
-    saved:          "حُفظت",
-    daysLeft:       "أيام متبقية",
-    noReport:       "التقرير غير متاح لهذه الجلسة المحفوظة.",
-    delete:         "حذف",
-    deleteConfirm:  "تأكيد الحذف",
-    deleteCancel:   "إلغاء",
-    confidence: {
-      high:   "ثقة عالية",
-      medium: "ثقة متوسطة",
-      low:    "ثقة منخفضة",
-    },
-    scoreLabels: {
-      color_harmony:     "تناسق الألوان",
-      outfit_cohesion:   "تناسق القطع",
-      layering:          "التطبيق والبنية",
-      visual_balance:    "التوازن البصري",
-      style_suitability: "ملاءمة الأسلوب",
-    },
+    section:   "٠٥ · خزانة ملابسي",
+    heading:   "السجل",
+    empty:     "لم تحفظي أي نتيجة بعد. احفظي نتيجة من شاشة التجربة لتظهر هنا.",
+    score:     "النقاط",
+    garments:  "القطع",
+    style:     "الأسلوب",
+    colorType: "نوع اللون",
+    verdict:   "قرار الشراء",
+    tips:      "نصائح التنسيق",
+    saved:     "حُفظت",
+    daysLeft:  "أيام متبقية",
+    noReport:  "التقرير غير متاح لهذه الجلسة المحفوظة.",
   },
 };
 
 const VERDICT_STYLES: Record<string, { bg: string; fg: string }> = {
-  BUY:   { bg: "var(--lime)",                                fg: "#141016" },
-  MAYBE: { bg: "color-mix(in srgb, var(--lav) 45%, #fff)", fg: "#141016" },
-  SKIP:  { bg: "#F2EEEC",                                   fg: "#9A9298" },
-};
-
-const CONFIDENCE_COLORS: Record<StyleReport["confidence"], string> = {
-  high:   "#6B9E6B",
-  medium: "#B08A3E",
-  low:    "#9A7070",
+  BUY:   { bg: "var(--lime)",                                      fg: "#141016" },
+  MAYBE: { bg: "color-mix(in srgb, var(--lav) 45%, #fff)",         fg: "#141016" },
+  SKIP:  { bg: "#F2EEEC",                                          fg: "#9A9298" },
 };
 
 const VERDICT_MAP: Record<string, "BUY" | "MAYBE" | "SKIP"> = {
@@ -115,38 +69,214 @@ function formatDate(iso: string): string {
   });
 }
 
-// ── ScoreBar ─────────────────────────────────────────────────────────────────
+// ── Detail bottom sheet ───────────────────────────────────────────────────────
 
-function ScoreBar({ label, score, note, max = 20 }: { label: string; score: number; note?: string; max?: number }) {
-  const pct   = Math.min(100, (score / max) * 100);
-  const color = pct >= 75 ? "var(--lime)" : pct >= 50 ? "#F4C87A" : "#E8928A";
+function SessionDetailSheet({
+  session,
+  open,
+  onClose,
+  language,
+}: {
+  session: SavedTryonSession | null;
+  open: boolean;
+  onClose: () => void;
+  language: Language;
+}) {
+  const [lang, setLang] = useState<Language>(language);
+
+  useEffect(() => { if (open) setLang(language); }, [open, language]);
+
+  if (!session) return null;
+
+  const report  = session.style_report?.[lang] ?? null;
+  const verdict = report ? verdictFromReport(report) : null;
+  const vs      = verdict ? VERDICT_STYLES[verdict] : null;
+  const t       = T[language];
+  const dir     = lang === "ar" ? "rtl" : "ltr";
+
   return (
-    <div className="py-[12px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-      <div className="flex items-center gap-[12px] mb-[8px]">
-        <span className="flex-1 font-[family-name:var(--font-grotesk)] text-[13px] text-[#6B6470]">{label}</span>
-        <span className="font-[family-name:var(--font-bodoni)] text-[17px] text-[#141016]">
-          {score}<span className="text-[11px] text-[#9A9298]">/{max}</span>
-        </span>
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={garmentLabel(session.garments)}
+      dir={dir}
+    >
+      <div className="flex flex-col gap-[20px]" dir={dir}>
+
+        {/* Result image */}
+        {session.result_image_url && (
+          <div
+            className="relative rounded-[16px] overflow-hidden bg-[#F8F5F2] w-full"
+            style={{ aspectRatio: "3 / 4" }}
+          >
+            <img
+              src={session.result_image_url}
+              alt="Try-on result"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
+        {/* Score + verdict */}
+        {report && (
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[2px]">
+                {t.score}
+              </div>
+              <div className="font-[family-name:var(--font-bodoni)] font-semibold text-[48px] leading-none text-[#141016]">
+                {report.score}
+                <span className="text-[18px] text-[#9A9298]">/100</span>
+              </div>
+            </div>
+            {vs && verdict && (
+              <span
+                className="px-[16px] py-[8px] rounded-full font-[family-name:var(--font-mono)] text-[11px] tracking-[0.12em]"
+                style={{ background: vs.bg, color: vs.fg }}
+              >
+                {verdict}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Language toggle — only when both EN and AR are saved */}
+        {session.style_report?.en && session.style_report?.ar && (
+          <div className="flex items-center gap-[2px] self-start rounded-full border border-[rgba(20,16,22,0.12)] overflow-hidden">
+            {(["en", "ar"] as Language[]).map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                className="px-[10px] py-[5px] border-none cursor-pointer font-[family-name:var(--font-mono)] text-[10px] tracking-[0.06em] transition-colors"
+                style={{
+                  background: lang === l ? "#141016" : "transparent",
+                  color:      lang === l ? "#fff"     : "#9A9298",
+                }}
+              >
+                {l === "en" ? "EN" : "عربية"}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {report ? (
+          <div className="flex flex-col">
+
+            {/* Garments */}
+            <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
+              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
+                {t.garments}
+              </div>
+              <div className="font-[family-name:var(--font-grotesk)] text-[14px] text-[#141016]">
+                {garmentLabel(session.garments)}
+              </div>
+            </div>
+
+            {/* Style category */}
+            {report.style_category && (
+              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
+                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
+                  {t.style}
+                </div>
+                <div className="font-[family-name:var(--font-bodoni)] text-[20px] text-[#141016]">
+                  {report.style_category}
+                </div>
+              </div>
+            )}
+
+            {/* Personal color type */}
+            {report.personal_color_analysis?.color_type && (
+              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
+                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
+                  {t.colorType}
+                </div>
+                <div className="font-[family-name:var(--font-bodoni)] text-[20px] text-[#141016]">
+                  {report.personal_color_analysis.color_type}
+                </div>
+              </div>
+            )}
+
+            {/* Shopping verdict */}
+            <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
+              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[8px]">
+                {t.verdict}
+              </div>
+              {vs && (
+                <div
+                  className="inline-block px-[12px] py-[5px] rounded-full font-[family-name:var(--font-grotesk)] text-[13px] font-medium mb-[10px]"
+                  style={{ background: vs.bg, color: vs.fg }}
+                >
+                  {report.worth_buying.label}
+                </div>
+              )}
+              <p className="m-0 font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.65] text-[#3A343C]">
+                {report.worth_buying.reasoning}
+              </p>
+            </div>
+
+            {/* Styling tips */}
+            {report.styling_tips?.length > 0 && (
+              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
+                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[10px]">
+                  {t.tips}
+                </div>
+                <ul className="m-0 p-0 list-none flex flex-col gap-[10px]">
+                  {report.styling_tips.slice(0, 3).map((tip, i) => (
+                    <li key={i} className="flex gap-[12px] items-start">
+                      <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#C4BEC8] pt-[2px] flex-none">
+                        0{i + 1}
+                      </span>
+                      <span className="font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.65] text-[#3A343C]">
+                        {tip}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Date + expiry */}
+            <div className="pt-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
+              <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] text-[#9A9298]">
+                {t.saved} {formatDate(session.created_at)} · {daysLeft(session.expires_at)} {t.daysLeft}
+              </span>
+            </div>
+
+          </div>
+        ) : (
+          /* Graceful fallback: session saved before report persistence existed */
+          <>
+            <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
+              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
+                {t.garments}
+              </div>
+              <div className="font-[family-name:var(--font-grotesk)] text-[14px] text-[#141016]">
+                {garmentLabel(session.garments)}
+              </div>
+            </div>
+            <p className="m-0 font-[family-name:var(--font-grotesk)] text-[14px] text-[#9A9298]">
+              {t.noReport}
+            </p>
+            <div className="pt-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
+              <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] text-[#9A9298]">
+                {t.saved} {formatDate(session.created_at)} · {daysLeft(session.expires_at)} {t.daysLeft}
+              </span>
+            </div>
+          </>
+        )}
+
       </div>
-      <div className="h-[5px] w-full rounded-full bg-[#F2EEEC] overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-      </div>
-      {note && (
-        <p className="m-0 mt-[5px] font-[family-name:var(--font-grotesk)] text-[11px] leading-[1.5] text-[#9A9298]">{note}</p>
-      )}
-    </div>
+    </BottomSheet>
   );
 }
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export function WardrobeScreen() {
-  const router = useRouter();
   const { language } = useLanguage();
-  const [sessions,        setSessions]        = useState<SavedTryonSession[]>([]);
-  const [loading,         setLoading]         = useState(true);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [deletingId,      setDeletingId]      = useState<string | null>(null);
+  const [sessions, setSessions] = useState<SavedTryonSession[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [selected, setSelected] = useState<SavedTryonSession | null>(null);
 
   const t   = T[language];
   const dir = language === "ar" ? "rtl" : "ltr";
@@ -156,17 +286,6 @@ export function WardrobeScreen() {
       .then(setSessions)
       .finally(() => setLoading(false));
   }, []);
-
-  async function handleDeleteConfirmed(id: string) {
-    setDeletingId(id);
-    setConfirmDeleteId(null);
-    try {
-      await deleteTryonSession(id);
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-    } finally {
-      setDeletingId(null);
-    }
-  }
 
   return (
     <section
@@ -218,21 +337,15 @@ export function WardrobeScreen() {
             const score   = report?.score ?? null;
             const verdict = report ? verdictFromReport(report) : null;
             const vs      = verdict ? VERDICT_STYLES[verdict] : null;
-            const isConfirming = confirmDeleteId === session.id;
-            const isDeleting   = deletingId === session.id;
 
             return (
-              <div
+              <button
                 key={session.id}
-                className="flex gap-[14px] items-center p-[12px] border border-[rgba(20,16,22,0.1)] rounded-[16px] bg-white hover:bg-[#FAF8F6] transition-colors"
-                style={{ opacity: isDeleting ? 0.4 : 1 }}
+                onClick={() => setSelected(session)}
+                className="flex gap-[14px] items-center p-[12px] border border-[rgba(20,16,22,0.1)] rounded-[16px] text-left w-full bg-white cursor-pointer hover:bg-[#FAF8F6] transition-colors"
               >
-                {/* Thumbnail — always taps to open detail */}
-                <button
-                  onClick={() => { setConfirmDeleteId(null); router.push(`/wardrobe/${session.id}`); }}
-                  className="relative w-[64px] h-[80px] flex-none rounded-[11px] overflow-hidden border border-[rgba(20,16,22,0.06)] bg-[#F2EEEC] p-0 border-none cursor-pointer"
-                  aria-label="Open details"
-                >
+                {/* Thumbnail */}
+                <div className="relative w-[64px] h-[80px] flex-none rounded-[11px] overflow-hidden border border-[rgba(20,16,22,0.06)] bg-[#F2EEEC]">
                   {session.result_image_url ? (
                     <img
                       src={session.result_image_url}
@@ -242,13 +355,10 @@ export function WardrobeScreen() {
                   ) : (
                     <div className="hatch absolute inset-0" />
                   )}
-                </button>
+                </div>
 
-                {/* Info area — taps to open detail */}
-                <button
-                  onClick={() => { setConfirmDeleteId(null); router.push(`/wardrobe/${session.id}`); }}
-                  className="flex-1 min-w-0 text-left border-none bg-transparent p-0 cursor-pointer"
-                >
+                {/* Info */}
+                <div className="flex-1 min-w-0">
                   <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.1em] uppercase text-[#9A9298]">
                     {formatDate(session.created_at)}
                   </div>
@@ -263,54 +373,32 @@ export function WardrobeScreen() {
                       {verdict}
                     </span>
                   )}
-                </button>
+                </div>
 
                 {/* Score */}
-                {score !== null && !isConfirming && (
-                  <button
-                    onClick={() => { setConfirmDeleteId(null); router.push(`/wardrobe/${session.id}`); }}
-                    className="text-right flex-none border-none bg-transparent p-0 cursor-pointer"
-                  >
+                {score !== null && (
+                  <div className="text-right flex-none">
                     <div className="font-[family-name:var(--font-bodoni)] font-semibold text-[26px] leading-none text-[#141016]">
                       {score}
                     </div>
-                    <div className="font-[family-name:var(--font-mono)] text-[9px] text-[#9A9298]">/100</div>
-                  </button>
-                )}
-
-                {/* Delete / confirm */}
-                {isConfirming ? (
-                  <div className="flex flex-col gap-[5px] flex-none">
-                    <button
-                      onClick={() => handleDeleteConfirmed(session.id)}
-                      disabled={isDeleting}
-                      className="px-[10px] py-[5px] rounded-full border-none bg-[#141016] font-[family-name:var(--font-mono)] text-[9px] tracking-[0.08em] text-white cursor-pointer whitespace-nowrap"
-                    >
-                      {t.deleteConfirm}
-                    </button>
-                    <button
-                      onClick={() => setConfirmDeleteId(null)}
-                      className="px-[10px] py-[5px] rounded-full border border-[rgba(20,16,22,0.14)] bg-white font-[family-name:var(--font-mono)] text-[9px] tracking-[0.08em] text-[#6B6470] cursor-pointer"
-                    >
-                      {t.deleteCancel}
-                    </button>
+                    <div className="font-[family-name:var(--font-mono)] text-[9px] text-[#9A9298]">
+                      /100
+                    </div>
                   </div>
-                ) : (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(session.id); }}
-                    disabled={isDeleting}
-                    className="w-[28px] h-[28px] flex-none flex items-center justify-center rounded-full bg-[#F2EEEC] border-none cursor-pointer font-[family-name:var(--font-grotesk)] text-[12px] text-[#9A9298] hover:bg-[#EAE5E3] transition-colors"
-                    aria-label={t.delete}
-                  >
-                    ✕
-                  </button>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
       )}
 
+      {/* Detail sheet — opens on card tap */}
+      <SessionDetailSheet
+        session={selected}
+        open={selected !== null}
+        onClose={() => setSelected(null)}
+        language={language}
+      />
     </section>
   );
 }

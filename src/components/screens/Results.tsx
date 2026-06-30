@@ -178,20 +178,13 @@ function LanguageToggle({ language, setLanguage }: { language: Language; setLang
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-interface ResultsScreenProps {
-  savedResultUrl?: string | null;
-  savedReport?: import("@/lib/types").DualReport | null;
-  onBack?: () => void;
-}
-
-export function ResultsScreen({ savedResultUrl, savedReport, onBack }: ResultsScreenProps = {}) {
+export function ResultsScreen() {
   const router = useRouter();
   const { language, setLanguage } = useLanguage();
-  const isSaved = savedResultUrl !== undefined;
   const [variant, setVariant]         = useState<ResultsVariant>("a");
   const [mounted, setMounted]         = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [saved, setSaved]             = useState(isSaved);
+  const [saved, setSaved]             = useState(false);
   const [saving, setSaving]           = useState(false);
 
   // Bottom sheet states
@@ -199,11 +192,9 @@ export function ResultsScreen({ savedResultUrl, savedReport, onBack }: ResultsSc
   const [colorOpen,   setColorOpen]   = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [buyOpen,     setBuyOpen]     = useState(false);
-  const liveResultUrl = mounted ? tryonSession.getResult() : null;
-  const resultUrl     = isSaved ? savedResultUrl : liveResultUrl;
-  const { report: fetchedReport, reportState: fetchedState } = useStyleReport(isSaved ? null : resultUrl);
-  const dualReport  = isSaved ? (savedReport ?? null) : fetchedReport;
-  const reportState = isSaved ? (dualReport ? "success" : "failed") : fetchedState;
+
+  const resultUrl = mounted ? tryonSession.getResult() : null;
+  const { report: dualReport, reportState } = useStyleReport(resultUrl);
   const report = dualReport?.[language] ?? null;
 
   useEffect(() => { setMounted(true); }, []);
@@ -714,14 +705,6 @@ export function ResultsScreen({ savedResultUrl, savedReport, onBack }: ResultsSc
       <div className="flex flex-col md:hidden">
         <div className="px-[20px] pt-[18px] flex items-center justify-between">
           <div className="flex items-center gap-[10px]">
-            {onBack && (
-              <button
-                onClick={onBack}
-                className="border-none bg-transparent p-0 cursor-pointer font-[family-name:var(--font-grotesk)] text-[13px] text-[#9A9298] hover:text-[#141016] transition-colors"
-              >
-                ←
-              </button>
-            )}
             <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#9A9298]">
               {t.reportLabel}
             </span>
@@ -738,14 +721,6 @@ export function ResultsScreen({ savedResultUrl, savedReport, onBack }: ResultsSc
         <div className="md:sticky md:top-[40px] md:self-start">
           <div className="flex items-center justify-between mb-[16px]">
             <div className="flex items-center gap-[10px]">
-              {onBack && (
-                <button
-                  onClick={onBack}
-                  className="border-none bg-transparent p-0 cursor-pointer font-[family-name:var(--font-grotesk)] text-[13px] text-[#9A9298] hover:text-[#141016] transition-colors"
-                >
-                  ←
-                </button>
-              )}
               <span className="font-[family-name:var(--font-mono)] text-[11px] tracking-[0.16em] uppercase text-[#9A9298]">
                 {t.reportLabel}
               </span>
