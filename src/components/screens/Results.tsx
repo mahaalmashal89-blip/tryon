@@ -187,6 +187,7 @@ interface ResultsScreenProps {
 export function ResultsScreen({ savedResultUrl, savedReport, onBack }: ResultsScreenProps = {}) {
   const router = useRouter();
   const { language, setLanguage } = useLanguage();
+  const isSaved = savedResultUrl !== undefined;
   const [variant, setVariant]         = useState<ResultsVariant>("a");
   const [mounted, setMounted]         = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -198,8 +199,6 @@ export function ResultsScreen({ savedResultUrl, savedReport, onBack }: ResultsSc
   const [colorOpen,   setColorOpen]   = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [buyOpen,     setBuyOpen]     = useState(false);
-
-  const isSaved = savedResultUrl !== undefined;
   const liveResultUrl = mounted ? tryonSession.getResult() : null;
   const resultUrl     = isSaved ? savedResultUrl : liveResultUrl;
   const { report: fetchedReport, reportState: fetchedState } = useStyleReport(isSaved ? null : resultUrl);
