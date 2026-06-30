@@ -28,7 +28,7 @@ export function LandingScreen() {
       {hero === "a" && (
         <div className="px-[20px] pt-[8px] md:px-0 md:pt-[16px]">
           <div
-            className="relative w-full rounded-[20px] overflow-hidden border border-[rgba(20,16,22,0.08)] md:max-h-[48vh]"
+            className="relative w-full rounded-[20px] overflow-hidden border border-[rgba(20,16,22,0.08)] md:max-h-[40vh]"
             style={{ aspectRatio: "1535 / 1024" }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
