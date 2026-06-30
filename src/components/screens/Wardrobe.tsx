@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { loadTryonHistory, deleteTryonSession, type SavedTryonSession, type StoredGarment } from "@/lib/tryonStore";
-import { BottomSheet } from "@/components/ui/BottomSheet";
-import { useLanguage, type Language } from "@/hooks/useLanguage";
+import { useLanguage } from "@/hooks/useLanguage";
 import type { StyleReport } from "@/lib/types";
+import { SavedResultDetail } from "@/components/screens/SavedResultDetail";
 
 // ── Translations ──────────────────────────────────────────────────────────────
 const T = {
@@ -138,275 +138,6 @@ function ScoreBar({ label, score, note, max = 20 }: { label: string; score: numb
   );
 }
 
-// ── Detail bottom sheet ───────────────────────────────────────────────────────
-
-function SessionDetailSheet({
-  session,
-  open,
-  onClose,
-  language,
-}: {
-  session: SavedTryonSession | null;
-  open: boolean;
-  onClose: () => void;
-  language: Language;
-}) {
-  const [lang, setLang] = useState<Language>(language);
-
-  useEffect(() => { if (open) setLang(language); }, [open, language]);
-
-  if (!session) return null;
-
-  const report  = session.style_report?.[lang] ?? null;
-  const verdict = report ? verdictFromReport(report) : null;
-  const vs      = verdict ? VERDICT_STYLES[verdict] : null;
-  const t       = T[language];
-  const tl      = T[lang];
-  const dir     = lang === "ar" ? "rtl" : "ltr";
-
-  return (
-    <BottomSheet
-      open={open}
-      onClose={onClose}
-      title={garmentLabel(session.garments)}
-      dir={dir}
-    >
-      <div className="flex flex-col gap-[20px]" dir={dir}>
-
-        {/* Result image */}
-        {session.result_image_url && (
-          <div
-            className="relative rounded-[16px] overflow-hidden bg-[#F8F5F2] w-full"
-            style={{ aspectRatio: "3 / 4" }}
-          >
-            <img
-              src={session.result_image_url}
-              alt="Try-on result"
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
-
-        {/* Language toggle */}
-        {session.style_report?.en && session.style_report?.ar && (
-          <div className="flex items-center gap-[2px] self-start rounded-full border border-[rgba(20,16,22,0.12)] overflow-hidden">
-            {(["en", "ar"] as Language[]).map((l) => (
-              <button
-                key={l}
-                onClick={() => setLang(l)}
-                className="px-[10px] py-[5px] border-none cursor-pointer font-[family-name:var(--font-mono)] text-[10px] tracking-[0.06em] transition-colors"
-                style={{
-                  background: lang === l ? "#141016" : "transparent",
-                  color:      lang === l ? "#fff"    : "#9A9298",
-                }}
-              >
-                {l === "en" ? "EN" : "عربية"}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {report ? (
-          <div className="flex flex-col">
-
-            {/* Score + confidence */}
-            <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[4px]">
-                {tl.score}
-              </div>
-              <div className="flex items-baseline gap-[10px]">
-                <span className="font-[family-name:var(--font-bodoni)] font-semibold text-[52px] leading-none text-[#141016]">
-                  {report.score}
-                </span>
-                <span className="font-[family-name:var(--font-mono)] text-[13px] text-[#9A9298]">/100</span>
-                <span
-                  className="font-[family-name:var(--font-mono)] text-[9px] tracking-[0.1em] uppercase"
-                  style={{ color: CONFIDENCE_COLORS[report.confidence] }}
-                >
-                  · {tl.confidence[report.confidence]}
-                </span>
-              </div>
-              {report.score_reasoning && (
-                <p className="m-0 mt-[8px] font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.55] text-[#6B6470]">
-                  {report.score_reasoning}
-                </p>
-              )}
-            </div>
-
-            {/* Score breakdown */}
-            {report.score_breakdown && (
-              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[4px]">
-                  {tl.scoreBreakdown}
-                </div>
-                {(Object.keys(tl.scoreLabels) as Array<keyof typeof tl.scoreLabels>).map((key) => (
-                  <ScoreBar
-                    key={key}
-                    label={tl.scoreLabels[key]}
-                    score={report.score_breakdown[key]}
-                    note={report.score_notes?.[key]}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Color Match */}
-            {report.color_match && (
-              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
-                  {tl.colorMatch}
-                </div>
-                <div className="font-[family-name:var(--font-bodoni)] text-[22px] text-[#141016] mb-[6px]">
-                  {report.color_match.rating} · {report.color_match.palette_type}
-                </div>
-                <p className="m-0 font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.6] text-[#3A343C]">
-                  {report.color_match.detail}
-                </p>
-                {report.outfit_cohesion?.detail && (
-                  <p className="m-0 mt-[8px] font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.6] text-[#6B6470]">
-                    {report.outfit_cohesion.detail}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Personal Color Analysis */}
-            {report.personal_color_analysis && (
-              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
-                  {tl.colorType}
-                </div>
-                <div className="font-[family-name:var(--font-bodoni)] text-[22px] text-[#141016] mb-[8px]">
-                  {report.personal_color_analysis.color_type}
-                </div>
-                {report.personal_color_analysis.reason && (
-                  <>
-                    <div className="font-[family-name:var(--font-mono)] text-[9px] tracking-[0.12em] uppercase text-[#9A9298] mb-[4px]">
-                      {tl.colorWhy}
-                    </div>
-                    <p className="m-0 mb-[10px] font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.6] text-[#3A343C]">
-                      {report.personal_color_analysis.reason}
-                    </p>
-                  </>
-                )}
-                {report.personal_color_analysis.outfit_advice && (
-                  <>
-                    <div className="font-[family-name:var(--font-mono)] text-[9px] tracking-[0.12em] uppercase text-[#9A9298] mb-[4px]">
-                      {tl.outfitAdvice}
-                    </div>
-                    <p className="m-0 font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.6] text-[#3A343C]">
-                      {report.personal_color_analysis.outfit_advice}
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Style category */}
-            {report.style_category && (
-              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
-                  {tl.style}
-                </div>
-                <div className="font-[family-name:var(--font-bodoni)] text-[22px] text-[#141016]">
-                  {report.style_category}
-                </div>
-              </div>
-            )}
-
-            {/* Shopping verdict */}
-            <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[8px]">
-                {tl.verdict}
-              </div>
-              {vs && (
-                <div
-                  className="inline-block px-[12px] py-[5px] rounded-full font-[family-name:var(--font-grotesk)] text-[13px] font-medium mb-[10px]"
-                  style={{ background: vs.bg, color: vs.fg }}
-                >
-                  {report.worth_buying.label}
-                </div>
-              )}
-              <p className="m-0 font-[family-name:var(--font-grotesk)] text-[14px] leading-[1.65] text-[#3A343C]">
-                {report.worth_buying.reasoning}
-              </p>
-            </div>
-
-            {/* Styling tips */}
-            {report.styling_tips?.length > 0 && (
-              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[10px]">
-                  {tl.tips}
-                </div>
-                <ul className="m-0 p-0 list-none flex flex-col gap-[10px]">
-                  {report.styling_tips.map((tip, i) => (
-                    <li key={i} className="flex gap-[12px] items-start">
-                      <span className="font-[family-name:var(--font-mono)] text-[10px] text-[#C4BEC8] pt-[2px] flex-none">
-                        0{i + 1}
-                      </span>
-                      <span className="font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.65] text-[#3A343C]">
-                        {tip}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Color recommendations */}
-            {report.color_recommendations?.length > 0 && (
-              <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-                <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[10px]">
-                  {tl.colorPicks}
-                </div>
-                <ul className="m-0 p-0 list-none flex flex-col gap-[10px]">
-                  {report.color_recommendations.map((rec, i) => (
-                    <li key={i} className="flex gap-[10px] items-start">
-                      <span className="font-[family-name:var(--font-mono)] text-[11px] text-[#C4BEC8] pt-[2px] flex-none">→</span>
-                      <span className="font-[family-name:var(--font-grotesk)] text-[13px] leading-[1.65] text-[#3A343C]">
-                        {rec}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Date + expiry */}
-            <div className="pt-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-              <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] text-[#9A9298]">
-                {t.saved} {formatDate(session.created_at)} · {daysLeft(session.expires_at)} {t.daysLeft}
-              </span>
-            </div>
-
-          </div>
-        ) : (
-          /* Graceful fallback: session saved before report persistence existed */
-          <>
-            <div className="py-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-              <div className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.14em] uppercase text-[#9A9298] mb-[6px]">
-                {t.garments}
-              </div>
-              <div className="font-[family-name:var(--font-grotesk)] text-[14px] text-[#141016]">
-                {garmentLabel(session.garments)}
-              </div>
-            </div>
-            <p className="m-0 font-[family-name:var(--font-grotesk)] text-[14px] text-[#9A9298]">
-              {t.noReport}
-            </p>
-            <div className="pt-[14px]" style={{ borderTop: "1px solid rgba(20,16,22,0.08)" }}>
-              <span className="font-[family-name:var(--font-mono)] text-[10px] tracking-[0.12em] text-[#9A9298]">
-                {t.saved} {formatDate(session.created_at)} · {daysLeft(session.expires_at)} {t.daysLeft}
-              </span>
-            </div>
-          </>
-        )}
-
-      </div>
-    </BottomSheet>
-  );
-}
-
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 export function WardrobeScreen() {
@@ -436,6 +167,16 @@ export function WardrobeScreen() {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  // When a session is selected, show the full Results-style detail view
+  if (selected) {
+    return (
+      <SavedResultDetail
+        session={selected}
+        onBack={() => setSelected(null)}
+      />
+    );
   }
 
   return (
@@ -581,13 +322,6 @@ export function WardrobeScreen() {
         </div>
       )}
 
-      {/* Detail sheet */}
-      <SessionDetailSheet
-        session={selected}
-        open={selected !== null}
-        onClose={() => setSelected(null)}
-        language={language}
-      />
     </section>
   );
 }
