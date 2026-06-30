@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { loadTryonHistory, deleteTryonSession, type SavedTryonSession, type StoredGarment } from "@/lib/tryonStore";
 import { useLanguage } from "@/hooks/useLanguage";
 import type { StyleReport } from "@/lib/types";
-import { ResultsScreen } from "@/components/screens/Results";
+import { SavedResultDetail } from "@/components/screens/SavedResultDetail";
 
 // ── Translations ──────────────────────────────────────────────────────────────
 const T = {
@@ -169,12 +169,11 @@ export function WardrobeScreen() {
     }
   }
 
-  // When a session is selected, render the exact same Results page with saved data
+  // When a session is selected, show the full Results-style detail view
   if (selected) {
     return (
-      <ResultsScreen
-        savedResultUrl={selected.result_image_url}
-        savedReport={selected.style_report as import("@/lib/types").DualReport | null}
+      <SavedResultDetail
+        session={selected}
         onBack={() => setSelected(null)}
       />
     );
