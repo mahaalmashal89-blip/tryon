@@ -23,10 +23,25 @@ export function ForgotPasswordScreen() {
     setError("");
     const supabase = createClient();
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    await supabase.auth.resetPasswordForEmail(email, {
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${origin}/reset-password`,
     });
-    // Always show success to prevent email enumeration.
+
+    if (resetError) {
+      // 429 = Supabase rate limit — tell the user explicitly so they don't keep retrying.
+      // For all other errors we still show success to prevent email enumeration.
+      if (resetError.status === 429) {
+        setError("Too many reset attempts. Please wait a few minutes before trying again.");
+        setLoading(false);
+        return;
+      }
+      // Any other Supabase error (misconfiguration, server issue): surface it.
+      setError("Something went wrong. Please try again in a moment.");
+      setLoading(false);
+      return;
+    }
+
+    // 200 — email sent (or email not found, Supabase hides that to prevent enumeration).
     setSent(true);
     setLoading(false);
   }
