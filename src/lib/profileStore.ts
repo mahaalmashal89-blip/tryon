@@ -39,7 +39,16 @@ export async function loadProfile(): Promise<StoredProfile | null> {
     .eq("id", user.id)
     .single();
 
-  if (!data) return null;
+  if (!data) {
+    // No profile row yet (user skipped setup or setup hasn't saved).
+    // Fall back to the gender stored in auth metadata at signup — same
+    // logic ProfileSetup.tsx already uses on first load.
+    const raw = String(user.user_metadata?.gender ?? "").toLowerCase();
+    const metaGender: "male" | "female" | null =
+      raw === "male" ? "male" : raw === "female" ? "female" : null;
+    if (!metaGender) return null;
+    return { gender: metaGender, height: "", weight: "", bust: "", waist: "", hips: "", size: "" };
+  }
 
   return {
     gender: (data.gender as "male" | "female") ?? "female",
