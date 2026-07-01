@@ -86,10 +86,14 @@ export function AuthScreen() {
     const supabase = createClient();
 
     if (isRegister) {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: name, gender } },
+        options: {
+          data: { full_name: name, gender },
+          emailRedirectTo: `${origin}/auth`,
+        },
       });
       if (error) { setAuthError("Unable to create account. Please check your details and try again."); setLoading(false); return; }
       router.push("/profile-setup");
