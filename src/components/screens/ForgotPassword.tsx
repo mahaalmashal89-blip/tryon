@@ -22,11 +22,9 @@ export function ForgotPasswordScreen() {
     setLoading(true);
     setError("");
     const supabase = createClient();
-    // redirectTo lands back on /auth so the user can set a new password after
-    // clicking the reset link — Supabase handles the token exchange.
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${origin}/auth`,
+      redirectTo: `${origin}/reset-password`,
     });
     // Always show success to prevent email enumeration.
     setSent(true);
